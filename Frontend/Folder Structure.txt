@@ -1,0 +1,173 @@
+src/
+├── app/
+│   ├── main.jsx                # ReactDOM.createRoot + App import
+│   ├── App.jsx                 # root component + providers
+│   └── routes/
+│       ├── AppRoutes.jsx       # react-router routes
+│       └── ProtectedRoutes.jsx # role-based + tenant-based route guard
+│
+├── features/
+│   ├── auth/
+│   │   ├── api/
+│   │   │   └── authApi.js      # login, register, refresh, logout
+│   │   ├── components/
+│   │   │   ├── LoginForm.jsx
+│   │   │   └── AuthGuard.jsx   # checks token + user.role
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx # AuthProvider, useAuth
+│   │   └── pages/
+│   │       ├── Login.jsx
+│   │       ├── Unauthorized.jsx
+│   │       └── AuthSuccess.jsx
+│
+│   ├── dashboard/
+│   │   ├── api/
+│   │   │   └── dashboardApi.js
+│   │   ├── components/
+│   │   │   ├── StatCard.jsx
+│   │   │   ├── BarChart.jsx
+│   │   │   ├── PieChart.jsx
+│   │   │   └── RecentActivity.jsx
+│   │   ├── columns/
+│   │   │   └── recentActivityColumns.jsx
+│   │   └── pages/
+│   │       └── Dashboard.jsx
+│
+│   ├── tasks/
+│   │   ├── api/
+│   │   │   ├── tasksApi.js
+│   │   │   ├── notesApi.js
+│   │   │   └── documentsApi.js
+│   │   ├── components/
+│   │   │   ├── AddTaskDialog.jsx
+│   │   │   ├── TaskEditDialog.jsx
+│   │   │   ├── TaskDeleteDialog.jsx
+│   │   │   ├── TaskDetailsCard.jsx
+│   │   │   ├── TaskComments.jsx
+│   │   │   ├── TaskNotes.jsx
+│   │   │   └── NoteEditor.jsx
+│   │   ├── columns/
+│   │   │   └── tasksColumns.jsx
+│   │   ├── types.js            # JS “shape” docs / constants
+│   │   └── pages/
+│   │       ├── Tasks.jsx
+│   │       └── TaskDetails.jsx
+│
+│   ├── leads/
+│   │   ├── api/
+│   │   │   └── leadsApi.js
+│   │   ├── components/
+│   │   │   ├── AddLeadDialog.jsx
+│   │   │   ├── EditLeadDialog.jsx
+│   │   │   └── LeadDetailsCard.jsx
+│   │   ├── columns/
+│   │   │   └── leadColumns.jsx
+│   │   └── pages/
+│   │       ├── Leads.jsx
+│   │       └── LeadDetails.jsx
+│
+│   ├── pipelines/
+│   │   ├── api/
+│   │   │   └── pipelinesApi.js
+│   │   ├── components/
+│   │   │   └── kanban/
+│   │   │       ├── KanbanBoard.jsx
+│   │   │       ├── StageCard.jsx
+│   │   │       ├── StageManager.jsx
+│   │   │       └── LeadDetailSheet.jsx
+│   │   └── pages/
+│   │       └── Pipelines.jsx
+│
+│   ├── tenants/
+│   │   ├── api/
+│   │   │   └── tenantsApi.js
+│   │   ├── components/
+│   │   │   ├── AddTenantDialog.jsx
+│   │   │   ├── EditTenantDialog.jsx
+│   │   │   └── TenantDetailsCard.jsx
+│   │   ├── columns/
+│   │   │   └── tenantColumns.jsx
+│   │   └── pages/
+│   │       ├── Tenants.jsx
+│   │       └── TenantDetails.jsx
+│
+│   ├── users/
+│   │   ├── api/
+│   │   │   └── usersApi.js
+│   │   ├── components/
+│   │   │   ├── AddUserDialog.jsx
+│   │   │   ├── UserEditDialog.jsx
+│   │   │   └── UserDetailsCard.jsx
+│   │   ├── columns/
+│   │   │   └── userColumns.jsx
+│   │   └── pages/
+│   │       ├── Users.jsx
+│   │       └── UserDetails.jsx
+│
+│   └── chat/
+│       ├── api/
+│       │   └── chatApi.js
+│       ├── components/
+│       │   └── ChatWidget.jsx
+│       └── pages/
+│           └── Chat.jsx        # if you have a full-page chat view
+│
+├── components/                 # ONLY truly shared, feature-agnostic UI
+│   ├── ui/                     # shadcn or your base design system
+│   │   ├── button.jsx
+│   │   ├── input.jsx
+│   │   ├── dialog.jsx
+│   │   ├── table.jsx
+│   │   └── ...
+│   ├── layout/
+│   │   ├── AppSidebar.jsx
+│   │   ├── NavMain.jsx
+│   │   ├── NavUser.jsx
+│   │   ├── TeamSwitcher.jsx
+│   │   ├── SearchForm.jsx
+│   │   └── DashboardLayout.jsx
+│   └── shared/
+│       ├── DataTable.jsx
+│       ├── Card.jsx
+│       ├── DeleteDialog.jsx
+│       ├── EditDialog.jsx
+│       ├── DetailsCard.jsx
+│       └── HeaderDetailsCard.jsx
+│
+├── editor/                     # quarantined tiptap vendor code
+│   ├── tiptap-ui/
+│   ├── tiptap-ui-primitive/
+│   ├── tiptap-node/
+│   ├── tiptap-icons/
+│   ├── tiptap-extension/
+│   ├── tiptap-templates/
+│   ├── hooks/
+│   │   ├── useTiptapEditor.jsx
+│   │   ├── useCursorVisibility.jsx
+│   │   └── useThrottledCallback.jsx
+│   └── lib/
+│       └── tiptap-utils.js
+│
+├── api/
+│   └── fetchApiHelper.js       # base fetch wrapper (auth header, base URL, error handling)
+│
+├── hooks/                      # app-level hooks only
+│   ├── useBreadcrumbs.js
+│   ├── useMobile.js
+│   └── useSessionTimeout.js    # optional: handle 401 + refresh logic centrally
+│
+├── lib/
+│   ├── utils.js                # cn(), general helpers
+│   ├── dateFormatter.js
+│   ├── validators.js
+│   └── constants.js            # global constants (roles, statuses, etc.)
+│
+├── context/                    # global providers not tied to a single feature
+│   ├── ThemeProvider.jsx
+│   └── TenantContext.jsx       # optional: if you want explicit tenant context
+│
+├── styles/
+│   ├── globals.css
+│   └── ...                      # Tailwind config, etc.
+│
+└── index.jsx                   # optional, if you don’t use app/main.jsx
