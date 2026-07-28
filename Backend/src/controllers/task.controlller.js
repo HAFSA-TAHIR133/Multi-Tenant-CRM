@@ -19,13 +19,24 @@ class TaskController {
   }
 
   async getAllTasks(req, res) {
-    try {
-      const result = await TaskService.getAllTasks(req.user);
+  try {
+    const { userId } = req.query;
+
+    if (userId) {
+      const result = await TaskService.getTasksForUser(userId, req.user);
       return httpResponse.SUCCESS(res, result);
-    } catch (error) {
-      return httpResponse.INTERNAL_SERVER_ERROR(res, {}, error.message || ErrorCodesMeta.INTERNAL_SERVER_ERROR.message);
     }
+
+    const result = await TaskService.getAllTasks(req.user);
+    return httpResponse.SUCCESS(res, result);
+  } catch (error) {
+    return httpResponse.INTERNAL_SERVER_ERROR(
+      res,
+      {},
+      error.message || ErrorCodesMeta.INTERNAL_SERVER_ERROR.message
+    );
   }
+}
 
   async getTaskById(req, res) {
     try {

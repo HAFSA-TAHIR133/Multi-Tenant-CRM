@@ -6,6 +6,7 @@ import { MantineProvider } from '@mantine/core';
 import Providers from './context/composeContext';
 import { BrowserRouter } from 'react-router-dom'
 
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>

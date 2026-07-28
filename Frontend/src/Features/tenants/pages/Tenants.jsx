@@ -96,11 +96,16 @@ export default function Tenants() {
     }
   };
 
-  const columns = tenantColumns({
-    onEdit: setEditTenant,
-    onDelete: setDeleteTenant,
-    onToggleStatus: handleToggleStatus,
-  });
+  // Wrap columns in useMemo so callbacks remain stable across re-renders
+  const columns = useMemo(
+    () =>
+      tenantColumns({
+        onEdit: setEditTenant,
+        onDelete: setDeleteTenant,
+        onToggleStatus: handleToggleStatus,
+      }),
+    []
+  );
 
   return (
     <div className="space-y-6">

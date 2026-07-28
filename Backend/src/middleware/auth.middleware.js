@@ -7,6 +7,8 @@ import { UserRole } from '../constants/user-roles.js';
 
 export const authMiddleware = (requiredRole) => {
   return async (req, res, next) => {
+    console.log('user from middleware:', req.user);
+    console.log('role:', req.user?.role);
     try {
       const authHeader = req.headers.authorization;
 
@@ -48,6 +50,8 @@ export const authMiddleware = (requiredRole) => {
 
       req.user = decoded;
       req.tenant = tenant;
+      console.log(decoded);
+      console.log(req.user);
 
       next();
     } 

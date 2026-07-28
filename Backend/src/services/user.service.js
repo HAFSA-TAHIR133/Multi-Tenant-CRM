@@ -1,5 +1,4 @@
 import bcrypt from 'bcrypt';
-import { Op } from 'sequelize';
 import { User, Profile, Tenant } from '../models/index.js';
 import { UserRole } from '../constants/user-roles.js';
 import { ErrorCodesMeta } from '../constants/error-codes.js';
@@ -17,7 +16,7 @@ const UserService = {
       profile = {},
     } = data;
 
-    if (!name || !email || !password || !role) {
+    if (!name || !email || !password || role === undefined || role === null) {
       const err = new Error(ErrorCodesMeta.BAD_REQUEST.message);
       err.code = ErrorCodesMeta.BAD_REQUEST.code;
       throw err;
@@ -30,15 +29,22 @@ const UserService = {
       throw err;
     }
 
-    if (creator.role === UserRole.ADMIN) {
+    let finalTenantId = creator.tenantId;
+
+    if (creator.role === UserRole.SUPERADMIN) {
+      finalTenantId = tenantId;
+    } else if (creator.role === UserRole.ADMIN) {
       if (tenantId && String(tenantId) !== String(creator.tenantId)) {
         const err = new Error('Admins can only create users in their own tenant');
         err.code = ErrorCodesMeta.FORBIDDEN.code;
         throw err;
       }
+      finalTenantId = creator.tenantId;
+    } else {
+      const err = new Error('Only admins can create users');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
     }
-
-    const finalTenantId = creator.role === UserRole.SUPERADMIN ? tenantId : creator.tenantId;
 
     if (!finalTenantId) {
       const err = new Error('tenantId is required');
@@ -88,14 +94,11 @@ const UserService = {
       where.tenantId = user.tenantId;
     }
 
-    const users = await User.findAll({
+    return await User.findAll({
       where,
       include: [{ model: Profile, as: 'profile', required: false }],
       order: [['createdAt', 'DESC']],
     });
-    console.log(users);
-
-    return users;
   },
 
   async getUserById(id, user) {
@@ -109,6 +112,12 @@ const UserService = {
     if (!targetUser) {
       const err = new Error('User not found');
       err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
+
+    if (user.role === UserRole.USER && String(targetUser.id) !== String(user.id)) {
+      const err = new Error('Users can only access their own profile');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
       throw err;
     }
 
@@ -129,6 +138,14 @@ const UserService = {
       throw err;
     }
 
+    const isSelf = String(targetUser.id) === String(user.id);
+
+    if (user.role === UserRole.USER && !isSelf) {
+      const err = new Error('Users can only update their own profile');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    }
+
     if (user.role === UserRole.ADMIN && String(targetUser.tenantId) !== String(user.tenantId)) {
       const err = new Error('Admins can only update users in their own tenant');
       err.code = ErrorCodesMeta.FORBIDDEN.code;
@@ -146,23 +163,20 @@ const UserService = {
       }
     }
 
-    if (user.role === UserRole.ADMIN && tenantId && String(tenantId) !== String(user.tenantId)) {
-      const err = new Error('Admins cannot move users to another tenant');
-      err.code = ErrorCodesMeta.FORBIDDEN.code;
-      throw err;
-    }
-
     const updateData = {
       name: name ?? targetUser.name,
       email: email ?? targetUser.email,
-      role: role ?? targetUser.role,
-      tenantId:
-        user.role === UserRole.SUPERADMIN
-          ? tenantId ?? targetUser.tenantId
-          : targetUser.tenantId,
-      isActive: isActive ?? targetUser.isActive,
-      emailVerified: emailVerified ?? targetUser.emailVerified,
+      isActive: user.role === UserRole.USER ? targetUser.isActive : (isActive ?? targetUser.isActive),
+      emailVerified: user.role === UserRole.USER ? targetUser.emailVerified : (emailVerified ?? targetUser.emailVerified),
     };
+
+    if (user.role !== UserRole.USER) {
+      updateData.role = role ?? targetUser.role;
+    }
+
+    if (user.role === UserRole.SUPERADMIN) {
+      updateData.tenantId = tenantId ?? targetUser.tenantId;
+    }
 
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
@@ -184,16 +198,14 @@ const UserService = {
         },
       });
 
-      if (userProfile) {
-        await userProfile.update({
-          firstName: profile.firstName ?? userProfile.firstName,
-          lastName: profile.lastName ?? userProfile.lastName,
-          phone: profile.phone ?? userProfile.phone,
-          avatar: profile.avatar ?? userProfile.avatar,
-          designation: profile.designation ?? userProfile.designation,
-          department: profile.department ?? userProfile.department,
-        });
-      }
+      await userProfile.update({
+        firstName: profile.firstName ?? userProfile.firstName,
+        lastName: profile.lastName ?? userProfile.lastName,
+        phone: profile.phone ?? userProfile.phone,
+        avatar: profile.avatar ?? userProfile.avatar,
+        designation: profile.designation ?? userProfile.designation,
+        department: profile.department ?? userProfile.department,
+      });
     }
 
     return await User.findByPk(id, {
@@ -214,6 +226,12 @@ const UserService = {
 
     if (user.role === UserRole.ADMIN && String(targetUser.tenantId) !== String(user.tenantId)) {
       const err = new Error('Admins can only delete users in their own tenant');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    }
+
+    if (user.role === UserRole.USER) {
+      const err = new Error('Users cannot delete accounts');
       err.code = ErrorCodesMeta.FORBIDDEN.code;
       throw err;
     }

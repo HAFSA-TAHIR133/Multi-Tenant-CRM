@@ -1,0 +1,570 @@
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import {Modal,TextInput,Textarea,Group,Button,Stack,Text,Paper,ActionIcon,Tooltip,Box,Divider,
+  Popover,ColorPicker,
+} from '@mantine/core';
+import {IconPencil,IconTrash,IconGripVertical,IconX,IconPalette,
+} from '@tabler/icons-react';
+import {DndContext,PointerSensor,useSensor,useSensors,closestCenter,
+} from '@dnd-kit/core';
+import {SortableContext,arrayMove,verticalListSortingStrategy,useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { toast } from 'sonner';
+import { pipelinesApi } from '../../api/pipelinesApi';
+import { b } from 'framer-motion/client';
+
+const normalizeHex = (v, fallback = '#111111') => {
+  if (typeof v !== 'string') return fallback;
+  const s = v.trim();
+  const withHash = s.startsWith('#') ? s : `#${s}`;
+  return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash : fallback;
+};
+
+function isLightColor(hex) {
+  const c = normalizeHex(hex).replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6;
+}
+const blackBtnStyle = {
+  root: {
+    backgroundColor: '#111111',
+    color: '#ffffff',
+    border: '1px solid #111111',
+    transition: "all 0.3s ease",
+    fontWeight: 500,
+    '&:hover': {
+      backgroundColor: '#ffffff',
+      color: '#111111',
+      border: '1px solid #111111',
+    },
+  },
+};
+
+
+function DraggableStageCard({ stage, onEdit, onDelete, isDeleting, isEditingThis }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: String(stage.id) });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    border: isEditingThis ? '1.5px solid #3b82f6' : '1px solid #e2e8f0',
+    background: isEditingThis ? '#f0f9ff' : '#fff',
+    borderRadius: 8,
+    boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
+    borderLeft: `4px solid ${stage.color || '#111111'}`,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Group justify="space-between" wrap="nowrap" px="sm" py="xs">
+        <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+          <span
+            {...attributes}
+            {...listeners}
+            style={{
+              cursor: 'grab',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#94a3b8',
+              flexShrink: 0,
+            }}
+          >
+            <IconGripVertical size={15} />
+          </span>
+
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              backgroundColor: stage.color || '#111111',
+              flexShrink: 0,
+            }}
+          />
+
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <Group gap={6} align="center">
+              <Text fw={600} size="sm" c="dark" lineClamp={1}>
+                {stage.name}
+              </Text>
+              {isEditingThis && (
+                <Text size="10px" fw={700} c="blue" style={{ textTransform: 'uppercase' }}>
+                  (Editing)
+                </Text>
+              )}
+            </Group>
+            <Text size="xs" c="dimmed" lineClamp={1}>
+              {stage.description || 'No description'} · Order {stage.order ?? '-'}
+            </Text>
+          </div>
+        </Group>
+
+        <Group gap={4} wrap="nowrap" flex="0 0 auto">
+          <Tooltip label="Edit" withArrow position="top">
+            <ActionIcon
+              variant={isEditingThis ? 'filled' : 'subtle'}
+              color={isEditingThis ? 'blue' : 'dark'}
+              onClick={onEdit}
+              size="sm"
+            >
+              <IconPencil size={14} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete" withArrow position="top">
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              onClick={onDelete}
+              size="sm"
+              loading={isDeleting}
+            >
+              <IconTrash size={14} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      </Group>
+    </div>
+  );
+}
+
+function InteractiveColorPicker({ value, onChange, disabled }) {
+  const [popoverOpened, setPopoverOpened] = useState(false);
+  const [manualHex, setManualHex] = useState(normalizeHex(value));
+
+  useEffect(() => {
+    setManualHex(normalizeHex(value));
+  }, [value]);
+
+  const handleManualInput = (e) => {
+    let val = String(e?.target?.value ?? e?.currentTarget?.value ?? '');
+    if (!val.startsWith('#')) val = `#${val}`;
+    setManualHex(val);
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) onChange(val);
+  };
+
+  const handleManualBlur = () => {
+    if (!/^#[0-9A-Fa-f]{6}$/.test(manualHex)) {
+      const next = normalizeHex(value, '#111111');
+      setManualHex(next);
+      onChange(next);
+    }
+  };
+
+  const current = normalizeHex(value);
+
+  return (
+    <Stack gap={6}>
+      <Text size="xs" fw={500}>
+        Stage Color
+      </Text>
+
+      <Group gap="xs" align="center">
+        {/* Interactive Spectrum Popover Trigger */}
+        <Popover
+          opened={popoverOpened}
+          onChange={setPopoverOpened}
+          width={220}
+          position="bottom-start"
+          withArrow
+          shadow="md"
+        >
+          <Popover.Target>
+            <Tooltip label="Click to open color spectrum" withArrow position="top">
+              <button
+                type="button"
+                onClick={() => !disabled && setPopoverOpened((o) => !o)}
+                disabled={disabled}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  backgroundColor: current,
+                  border: '1px solid #cbd5e1',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                }}
+              >
+                <IconPalette
+                  size={18}
+                  style={{
+                    color: isLightColor(current) ? '#1e293b' : '#ffffff',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </button>
+            </Tooltip>
+          </Popover.Target>
+
+          <Popover.Dropdown p="xs">
+            <Stack gap="xs">
+              <ColorPicker
+                format="hex"
+                value={current}
+                onChange={(val) => {
+                  setManualHex(val);
+                  onChange(val);
+                }}
+                fullWidth
+                size="xs"
+              />
+              <Button
+                size="compact-xs"
+                variant="light"
+                fullWidth
+                style={blackBtnStyle}
+                onClick={() => setPopoverOpened(false)}
+              >
+                Done
+              </Button>
+            </Stack>
+          </Popover.Dropdown>
+        </Popover>
+
+        {/* Text Hex Input */}
+        <TextInput
+          value={manualHex}
+          onChange={handleManualInput}
+          onBlur={handleManualBlur}
+          disabled={disabled}
+          size="xs"
+          placeholder="#000000"
+          styles={{
+            root: { flex: 1, maxWidth: 110 },
+            input: {
+              fontFamily: 'monospace',
+              fontWeight: 600,
+              letterSpacing: 0.5,
+              textTransform: 'uppercase',
+            },
+          }}
+        />
+
+        {/* Dynamic Color Preview Badge */}
+        <Box
+          style={{
+            padding: '4px 10px',
+            borderRadius: 6,
+            backgroundColor: current,
+            color: isLightColor(current) ? '#1e293b' : '#ffffff',
+            fontSize: 11,
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+            height: 30,
+            display: 'flex',
+            alignItems: 'center',
+            border: '1px solid rgba(0,0,0,0.08)',
+          }}
+        >
+          Preview
+        </Box>
+      </Group>
+    </Stack>
+  );
+}
+
+export default function StageManager({
+  opened,
+  onClose,
+  pipelineId,
+  canManage,
+  stages = [],
+  onChanged,
+  editStage = null,
+}) {
+  const [localStages, setLocalStages] = useState(stages);
+  const [editingStage, setEditingStage] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    color: '#111111',
+  });
+
+  useEffect(() => {
+    setLocalStages(stages || []);
+  }, [stages]);
+
+  const resetForm = useCallback(() => {
+    setForm({
+      name: '',
+      description: '',
+      color: '#111111',
+    });
+    setEditingStage(null);
+  }, []);
+
+  useEffect(() => {
+    if (!opened) {
+      resetForm();
+      setConfirmDelete(null);
+      return;
+    }
+
+    if (editStage) {
+      setEditingStage(editStage);
+      setForm({
+        name: editStage.name || '',
+        description: editStage.description || '',
+        color: normalizeHex(editStage.color, '#111111'),
+      });
+    }
+  }, [opened, editStage, resetForm]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const selectStageForEdit = (stage) => {
+    setEditingStage(stage);
+    setForm({
+      name: stage.name || '',
+      description: stage.description || '',
+      color: normalizeHex(stage.color, '#111111'),
+    });
+  };
+
+  const saveStage = async () => {
+    if (!form.name.trim()) {
+      toast.error('Stage name is required');
+      return;
+    }
+
+    if (!pipelineId) {
+      toast.error('Please select a pipeline first');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        pipelineId,
+        name: form.name,
+        description: form.description,
+        color: normalizeHex(form.color, '#111111'),
+        order: editingStage ? editingStage.order : (localStages?.length || 0) + 1,
+      };
+
+      if (editingStage) {
+        await pipelinesApi.updateStage(editingStage.id, payload);
+        toast.success('Stage updated');
+      } else {
+        await pipelinesApi.createStage(payload);
+        toast.success('Stage created');
+      }
+
+      resetForm();
+      onChanged?.();
+    } catch (error) {
+      toast.error(error?.message || 'Failed to save stage');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDeleteStage = async () => {
+    if (!confirmDelete) return;
+    setDeletingId(confirmDelete.id);
+    try {
+      await pipelinesApi.deleteStage(confirmDelete.id);
+      toast.success('Stage deleted');
+
+      if (editingStage?.id === confirmDelete.id) {
+        resetForm();
+      }
+
+      setConfirmDelete(null);
+      onChanged?.();
+    } catch (error) {
+      toast.error(error?.message || 'Failed to delete stage');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDragEnd = async ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = localStages.findIndex((s) => String(s.id) === String(active.id));
+    const newIndex = localStages.findIndex((s) => String(s.id) === String(over.id));
+    const reordered = arrayMove(localStages, oldIndex, newIndex).map((s, idx) => ({
+      ...s,
+      order: idx + 1,
+    }));
+
+    setLocalStages(reordered);
+
+    try {
+      await pipelinesApi.reorderStages(pipelineId, reordered.map((s) => s.id));
+      toast.success('Stages reordered');
+      onChanged?.();
+    } catch {
+      toast.error('Failed to save order');
+      setLocalStages(stages || []);
+    }
+  };
+
+  const items = useMemo(() => localStages.map((s) => String(s.id)), [localStages]);
+
+  return (
+    <>
+      <Modal
+        opened={opened}
+        onClose={onClose}
+        size="md"
+        title="Manage Pipeline Stages"
+        centered
+        styles={{
+          content: { borderRadius: 12 },
+          header: { borderBottom: '1px solid #f1f5f9' },
+        }}
+      >
+        <Stack gap="md">
+          {/* SECTION 1: CREATE / EDIT FORM */}
+          <Paper withBorder p="sm" radius="md" style={{ backgroundColor: '#f8fafc' }}>
+            <Group justify="space-between" mb={8}>
+              <Text fw={600} size="xs" c="dark">
+                {editingStage ? `Edit "${editingStage.name}"` : 'Add New Stage'}
+              </Text>
+              {editingStage && (
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  size="compact-xs"
+                  leftSection={<IconX size={12} />}
+                  onClick={resetForm}
+                >
+                  Cancel Edit
+                </Button>
+              )}
+            </Group>
+
+            <Stack gap="xs">
+              <TextInput
+                label="Stage Name"
+                placeholder="e.g. In Negotiation"
+                size="xs"
+                value={form.name}
+                onChange={(e) => {
+                  const val = e?.target?.value ?? e?.currentTarget?.value ?? '';
+                  setForm((p) => ({ ...p, name: val }));
+                }}
+                required
+                disabled={saving}
+              />
+
+              <Textarea
+                label="Description"
+                placeholder="Optional stage description"
+                size="xs"
+                value={form.description}
+                onChange={(e) => {
+                  const val = e?.target?.value ?? e?.currentTarget?.value ?? '';
+                  setForm((p) => ({ ...p, description: val }));
+                }}
+                disabled={saving}
+                rows={2}
+              />
+
+              <InteractiveColorPicker
+                value={form.color}
+                onChange={(color) => setForm((p) => ({ ...p, color }))}
+                disabled={saving}
+              />
+
+              <Group justify="flex-end" mt={4}>
+                <Button size="xs" onClick={saveStage} loading={saving} styles={blackBtnStyle}>
+                  {editingStage ? 'Update Stage' : 'Add Stage'}
+                </Button>
+              </Group>
+            </Stack>
+          </Paper>
+
+          <Divider label="Existing Stages" labelPosition="center" />
+
+          {/* SECTION 2: STAGE LIST WITH DRAG AND DROP */}
+          <Stack gap="xs">
+            {!pipelineId ? (
+              <Text size="xs" c="dimmed" ta="center">
+                Select a pipeline to view stages.
+              </Text>
+            ) : localStages.length === 0 ? (
+              <Text size="xs" c="dimmed" ta="center">
+                No stages added yet. Use the form above to create your first stage.
+              </Text>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={items} strategy={verticalListSortingStrategy}>
+                  <Stack gap={6} style={{ maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}>
+                    {localStages.map((stage) => (
+                      <DraggableStageCard
+                        key={stage.id}
+                        stage={stage}
+                        isEditingThis={editingStage?.id === stage.id}
+                        onEdit={() => selectStageForEdit(stage)}
+                        onDelete={() => setConfirmDelete(stage)}
+                        isDeleting={deletingId === stage.id}
+                      />
+                    ))}
+                  </Stack>
+                </SortableContext>
+              </DndContext>
+            )}
+          </Stack>
+        </Stack>
+      </Modal>
+
+      {/* CONFIRM DELETE MODAL */}
+      <Modal
+        opened={!!confirmDelete && opened}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete Stage?"
+        centered
+        size="xs"
+        styles={{ content: { borderRadius: 12 } }}
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Are you sure you want to delete{' '}
+            <Text component="span" fw={600} c="dark">
+              "{confirmDelete?.name}"
+            </Text>
+            ?
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={() => setConfirmDelete(null)}
+              disabled={deletingId === confirmDelete?.id}
+              size="xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={confirmDeleteStage}
+              loading={deletingId === confirmDelete?.id}
+              size="xs"
+            >
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </>
+  );
+}

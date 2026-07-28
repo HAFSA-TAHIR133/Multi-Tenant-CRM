@@ -20,7 +20,9 @@ import {
   GalleryVerticalEnd,
   AudioLines,
   Terminal,
-  Users
+  Users,
+  GitFork,
+  User
 } from "lucide-react";
 
 const data = {
@@ -63,6 +65,16 @@ const data = {
       {
         title: "Leads",
         url: "/admin/leads",
+        icon: Users,
+      },
+      {
+        title: "Pipelines",
+        url: "/admin/pipelines",
+        icon: GitFork,
+      },
+      {
+        title: "Users",
+        url: "/users",
         icon: Users,
       }
     ],

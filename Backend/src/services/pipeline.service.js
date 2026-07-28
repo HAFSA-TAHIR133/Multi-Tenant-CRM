@@ -4,6 +4,7 @@ import {
   User,
   PipelineAssignment,
   Tenant,
+  Stage, Lead 
 } from '../models/index.js';
 import { UserRole } from '../constants/user-roles.js';
 import { ErrorCodesMeta } from '../constants/error-codes.js';
@@ -18,13 +19,16 @@ const PipelineService = {
       throw err;
     }
 
-    if (creator.role === UserRole.ADMIN) {
-      if (String(tenantId) !== String(creator.tenantId)) {
-        const err = new Error('Admins can only create pipelines in their own tenant');
+    if (creator.role === UserRole.ADMIN &&
+        tenantId &&
+        String(tenantId) !== String(creator.tenantId)
+      ) {
+        const err = new Error(
+          'Admins can only create pipelines in their own tenant'
+        );
         err.code = ErrorCodesMeta.FORBIDDEN.code;
         throw err;
       }
-    }
 
     const finalTenantId =
       creator.role === UserRole.SUPERADMIN ? tenantId : creator.tenantId;
@@ -249,6 +253,74 @@ const PipelineService = {
 
     return pipeline.assignedUsers || [];
   },
+
+  async  getPipelineStages(id, user) {
+    const pipeline = await Pipeline.findByPk(id);
+    if (!pipeline) {
+      const err = new Error('Pipeline not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
+
+    if (user.role === UserRole.ADMIN && String(pipeline.tenantId) !== String(user.tenantId)) {
+      const err = new Error('Admins can only access pipelines in their own tenant');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    }
+
+    return await Stage.findAll({
+      where: { pipelineId: id },
+      order: [['order', 'ASC'], ['createdAt', 'ASC']],
+    });
+  },
+
+  async  getPipelineLeads(id, user) {
+    const pipeline = await Pipeline.findByPk(id);
+    if (!pipeline) {
+      const err = new Error('Pipeline not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
+
+    if (user.role === UserRole.ADMIN && String(pipeline.tenantId) !== String(user.tenantId)) {
+      const err = new Error('Admins can only access pipelines in their own tenant');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    }
+
+    return await Lead.findAll({
+      where: { pipelineId: id },
+      order: [['createdAt', 'DESC']],
+    });
+  },
+
+  async assignLeadToPipeline(pipelineId, leadId, user) {
+  const pipeline = await Pipeline.findByPk(pipelineId);
+  if (!pipeline) {
+    const err = new Error('Pipeline not found');
+    err.code = ErrorCodesMeta.NOT_FOUND.code;
+    throw err;
+  }
+
+  const lead = await Lead.findByPk(leadId);
+  if (!lead) {
+    const err = new Error('Lead not found');
+    err.code = ErrorCodesMeta.NOT_FOUND.code;
+    throw err;
+  }
+
+  if (String(lead.tenantId) !== String(pipeline.tenantId)) {
+    const err = new Error('Lead and pipeline must belong to the same tenant');
+    err.code = ErrorCodesMeta.FORBIDDEN.code;
+    throw err;
+  }
+
+  lead.pipelineId = pipelineId;
+  await lead.save();
+
+  return lead;
+}
+
 };
 
 export default PipelineService;

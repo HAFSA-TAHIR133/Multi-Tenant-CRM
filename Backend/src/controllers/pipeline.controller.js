@@ -102,6 +102,53 @@ class PipelineController {
       return httpResponse.INTERNAL_SERVER_ERROR(res, {}, error.message || ErrorCodesMeta.INTERNAL_SERVER_ERROR.message);
     }
   }
+  async getPipelineStages(req, res) {
+  try {
+    const result = await PipelineService.getPipelineStages(req.params.id, req.user);
+    return httpResponse.SUCCESS(res, result);
+  } catch (error) {
+    if (error.code === ErrorCodesMeta.NOT_FOUND.code) {
+      return httpResponse.NOT_FOUND(res, {}, error.message);
+    }
+    if (error.code === ErrorCodesMeta.FORBIDDEN.code) {
+      return httpResponse.FORBIDDEN(res, {}, error.message);
+    }
+    return httpResponse.INTERNAL_SERVER_ERROR(res, {}, error.message || ErrorCodesMeta.INTERNAL_SERVER_ERROR.message);
+  }
+}
+
+async getPipelineLeads(req, res) {
+  try {
+    const result = await PipelineService.getPipelineLeads(req.params.id, req.user);
+    return httpResponse.SUCCESS(res, result);
+  } catch (error) {
+    if (error.code === ErrorCodesMeta.NOT_FOUND.code) {
+      return httpResponse.NOT_FOUND(res, {}, error.message);
+    }
+    if (error.code === ErrorCodesMeta.FORBIDDEN.code) {
+      return httpResponse.FORBIDDEN(res, {}, error.message);
+    }
+    return httpResponse.INTERNAL_SERVER_ERROR(res, {}, error.message || ErrorCodesMeta.INTERNAL_SERVER_ERROR.message);
+  }
+}
+
+  async assignLeadToPipeline(req, res) {
+  try {
+    const { id } = req.params;
+    const { leadId } = req.body;
+
+    const result = await PipelineService.assignLeadToPipeline(id, leadId, req.user);
+    return httpResponse.SUCCESS(res, result);
+  } catch (error) {
+    if (error.code === ErrorCodesMeta.NOT_FOUND.code) {
+      return httpResponse.NOT_FOUND(res, {}, error.message);
+    }
+    if (error.code === ErrorCodesMeta.FORBIDDEN.code) {
+      return httpResponse.FORBIDDEN(res, {}, error.message);
+    }
+    return httpResponse.INTERNAL_SERVER_ERROR(res, {}, error.message || ErrorCodesMeta.INTERNAL_SERVER_ERROR.message);
+  }
+}
 }
 
 export default new PipelineController();

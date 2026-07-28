@@ -1,19 +1,11 @@
-import { Link } from 'react-router-dom';
-import { Badge } from '../../../components/ui/badge';
-import RowActions from '../../../components/common/RowActions';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Pencil, Trash2, Power } from 'lucide-react';
 
 export const tenantColumns = ({ onEdit, onDelete, onToggleStatus }) => [
   {
     accessorKey: 'name',
     header: 'Name',
-    Cell: ({ cell, row }) => (
-      <Link
-        to={`/superadmin/tenants/${row.original.id}/users`}
-        className="font-medium text-primary hover:text-blue-600 hover:underline cursor-pointer transition-colors"
-      >
-        {row.original.name}
-      </Link>
-    ),
   },
   {
     accessorKey: 'slug',
@@ -22,30 +14,63 @@ export const tenantColumns = ({ onEdit, onDelete, onToggleStatus }) => [
   {
     accessorKey: 'domain',
     header: 'Domain',
-    Cell: ({ cell, row }) => row.original.domain || '-',
+    Cell: ({ cell }) => cell.getValue() || '—',
   },
   {
     accessorKey: 'status',
     header: 'Status',
-    Cell: ({ cell, row }) => (
-      <Badge variant={row.original.status === 'active' ? 'default' : 'secondary'}>
-        {row.original.status === 'inactive' ? 'Deactivate' : row.original.status}
-      </Badge>
-    ),
+    Cell: ({ row }) => {
+      const rawStatus = String(row.original.status || '').toLowerCase();
+      const isActive = rawStatus === 'active';
+
+      const statusLabel = isActive ? 'Active' : 'Deactivate';
+
+      return (
+        <Badge variant={isActive ? 'default' : 'secondary'}>
+          {statusLabel}
+        </Badge>
+      );
+    },
   },
   {
     id: 'actions',
     header: 'Actions',
     Cell: ({ row }) => {
       const tenant = row.original;
+      const isActive = String(tenant.status || '').toLowerCase() === 'active';
+
       return (
-        <RowActions
-          onEdit={() => onEdit(tenant)}
-          onDelete={() => onDelete(tenant)}
-          onToggleStatus={() => onToggleStatus(tenant)}
-          status={tenant.status}
-          showToggle={true}
-        />
+        <div className="flex items-center gap-2">
+          {/* Edit Button: Black background, white text */}
+          <Button
+            size="sm"
+            className="bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            onClick={() => onEdit(tenant)}
+          >
+            <Pencil className="h-3.5 w-3.5 mr-1" />
+            Edit
+          </Button>
+
+          {/* Activate / Deactivate Button: Red / Destructive */}
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => onToggleStatus(tenant)}
+          >
+            <Power className="h-3.5 w-3.5 mr-1" />
+            {isActive ? 'Deactivate' : 'Activate'}
+          </Button>
+
+          {/* Delete Button: Red / Destructive */}
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => onDelete(tenant)}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" />
+            Delete
+          </Button>
+        </div>
       );
     },
   },

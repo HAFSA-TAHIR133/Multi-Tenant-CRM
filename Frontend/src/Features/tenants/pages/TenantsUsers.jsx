@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { userApi } from '../../users/api/userApi';
+import { usersApi } from '../../users/api/usersApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
@@ -52,7 +52,7 @@ export default function TenantUsers() {
     setLoading(true);
     setError('');
     try {
-      const res = await userApi.getAllUsers();
+      const res = await usersApi.getAllUsers();
       const normalized = normalizeUsers(res);
       setAllUsers(normalized);
 
@@ -118,9 +118,9 @@ export default function TenantUsers() {
       };
 
       if (editUser) {
-        await userApi.updateUser(editUser.id, payload);
+        await usersApi.updateUser(editUser.id, payload);
       } else {
-        await userApi.createUser({ ...payload, password: form.password });
+        await usersApi.createUser({ ...payload, password: form.password });
       }
 
       await loadUsers();
@@ -137,7 +137,7 @@ export default function TenantUsers() {
   const handleDelete = async () => {
     if (!deleteUser) return;
     try {
-      await userApi.deleteUser(deleteUser.id);
+      await usersApi.deleteUser(deleteUser.id);
       await loadUsers();
       setDeleteUser(null);
     } catch (err) {
@@ -147,7 +147,7 @@ export default function TenantUsers() {
 
   const handleToggleStatus = async (user) => {
     try {
-      await userApi.updateUser(user.id, {
+      await usersApi.updateUser(user.id, {
         name: user.name,
         email: user.email,
         role: user.role,

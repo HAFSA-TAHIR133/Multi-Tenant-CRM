@@ -296,6 +296,65 @@ const TaskService = {
     await task.destroy();
     return { success: true };
   },
+  async getTasksForUser(userId, actor) {
+    // 1. Ensure target user exists
+    const targetUser = await User.findByPk(userId, {
+      include: [{ model: Tenant, as: 'tenant', required: false }],
+    });
+
+    if (!targetUser) {
+      const err = new Error('User not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
+
+    // 2. Authorization
+    if (actor.role === UserRole.USER) {
+      // Normal user: only their own tasks
+      if (String(targetUser.id) !== String(actor.id)) {
+        const err = new Error('You can only view your own tasks');
+        err.code = ErrorCodesMeta.FORBIDDEN.code;
+        throw err;
+      }
+    } else if (actor.role === UserRole.ADMIN) {
+      // Admin: only users in their tenant
+      if (String(targetUser.tenantId) !== String(actor.tenantId)) {
+        const err = new Error('Admins can only view tasks for users in their tenant');
+        err.code = ErrorCodesMeta.FORBIDDEN.code;
+        throw err;
+      }
+    }
+    // SUPERADMIN: no restriction
+
+    // 3. Build where clause for tasks whose lead is assigned to this user
+    const taskInclude = [
+      {
+        model: Lead,
+        as: 'lead',
+        required: true,
+        where: { assignedUserId: targetUser.id },
+        include: [
+          { model: User, as: 'assignedUser', required: false },
+          { model: Pipeline, as: 'pipeline', required: true },
+          { model: Stage, as: 'stage', required: true },
+        ],
+      },
+      { model: User, as: 'assignedUser', required: false },
+    ];
+
+    const where = {};
+    if (actor.role !== UserRole.SUPERADMIN) {
+      where.tenantId = targetUser.tenantId;
+    }
+
+    const tasks = await Task.findAll({
+      where,
+      include: taskInclude,
+      order: [['createdAt', 'DESC']],
+    });
+
+    return tasks;
+  },
 };
 
 export default TaskService;

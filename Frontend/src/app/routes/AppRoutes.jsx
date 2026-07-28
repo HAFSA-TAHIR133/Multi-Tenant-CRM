@@ -13,8 +13,9 @@ import Tenants from '../../Features/tenants/pages/Tenants';
 import TenantUsers from '../../Features/tenants/pages/TenantsUsers';
 import LeadDetails from '@/Features/leads/pages/LeadDetails';
 import Leads from '../../Features/leads/pages/Leads';
-// import Pipelines from '../../features/pipelines/pages/Pipelines';
-// import Tasks from '../../features/tasks/pages/Tasks';
+import Pipelines from '@/Features/pipelines/pages/Pipelines';
+import Users from '@/Features/users/pages/Users';
+import UserDetails from '@/Features/users/pages/UserDetails';
 // import Users from '../../features/users/pages/Users';
 
 export default function AppRoutes() {
@@ -36,9 +37,10 @@ export default function AppRoutes() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
            <Route path="/admin/leads" element={<Leads />} />
            <Route path="/leads/:id" element={<LeadDetails />} />
-          {/*<Route path="/admin/pipelines" element={<Pipelines />} />
-          <Route path="/admin/tasks" element={<Tasks />} />
-          <Route path="/admin/users" element={<Users />} /> */}
+           <Route path="/admin/pipelines" element={<Pipelines />} />
+          {/*<Route path="/admin/tasks" element={<Tasks />} /> */}
+          <Route path="/users" element={<Users />} /> 
+          <Route path="/users/:id" element={<UserDetails />} />
         </Route>
       </Route>
 

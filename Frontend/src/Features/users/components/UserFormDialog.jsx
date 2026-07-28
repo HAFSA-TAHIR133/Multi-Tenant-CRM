@@ -21,93 +21,169 @@ export default function UserFormDialog({
     name: '',
     email: '',
     password: '',
-    role: 'user',
-    status: 'active',
+    role: '1',
+    isActive: true,
+    firstName: '',
+    lastName: '',
+    phone: '',
+    designation: '',
+    department: '',
   });
 
   useEffect(() => {
-    if (user) {
+    if (user && mode === 'edit') {
       setForm({
         name: user.name || '',
         email: user.email || '',
         password: '',
-        role: user.role || 'user',
-        status: user.status || 'active',
+        role: String(user.role ?? '1'),
+        isActive: user.isActive ?? true,
+        firstName: user.profile?.firstName || '',
+        lastName: user.profile?.lastName || '',
+        phone: user.profile?.phone || '',
+        designation: user.profile?.designation || '',
+        department: user.profile?.department || '',
+      });
+    } else {
+      setForm({
+        name: '',
+        email: '',
+        password: '',
+        role: '1',
+        isActive: true,
+        firstName: '',
+        lastName: '',
+        phone: '',
+        designation: '',
+        department: '',
       });
     }
-  }, [user]);
+  }, [user, mode, open]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const payload = {
       name: form.name,
       email: form.email,
-      role: form.role,
-      status: form.status,
+      role: Number(form.role),
+      isActive: form.isActive,
+      profile: {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        phone: form.phone,
+        designation: form.designation,
+        department: form.department,
+      },
       ...(mode === 'create' ? { password: form.password } : {}),
       ...(mode === 'edit' && form.password ? { password: form.password } : {}),
     };
+
     await onSubmit(payload);
   };
 
-  const content = (
-    <>
-      <DialogHeader>
-        <DialogTitle>{mode === 'create' ? 'Add User' : 'Edit User'}</DialogTitle>
-      </DialogHeader>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label>Name</Label>
-          <Input name="name" value={form.name} onChange={handleChange} required />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Email</Label>
-          <Input type="email" name="email" value={form.email} onChange={handleChange} required />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Password</Label>
-          <Input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            placeholder={mode === 'edit' ? 'Leave blank to keep current password' : ''}
-            required={mode === 'create'}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Role</Label>
-          <Input name="role" value={form.role} onChange={handleChange} />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Status</Label>
-          <Input name="status" value={form.status} onChange={handleChange} />
-        </div>
-
-        <DialogFooter>
-          <Button type="submit">{mode === 'create' ? 'Create User' : 'Update User'}</Button>
-        </DialogFooter>
-      </form>
-    </>
-  );
-
-  if (mode === 'create') {
-    return content;
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>{content}</DialogContent>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-2">
+          <DialogTitle>{mode === 'create' ? 'Add User' : 'Edit User'}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+          {/* Scrollable Body */}
+          <div className="space-y-4 px-6 overflow-y-auto flex-1 pb-4">
+            <div className="space-y-2">
+              <Label>Name *</Label>
+              <Input name="name" value={form.name} onChange={handleChange} required />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Email *</Label>
+              <Input type="email" name="email" value={form.email} onChange={handleChange} required />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Password{mode === 'create' ? ' *' : ''}</Label>
+              <Input
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                placeholder={mode === 'edit' ? 'Leave blank to keep current password' : ''}
+                required={mode === 'create'}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <select
+                name="role"
+                value={form.role}
+                onChange={handleChange}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="1">User</option>
+                <option value="2">Admin</option>
+                <option value="3">Super Admin</option>
+              </select>
+            </div>
+
+            <div className="space-y-2 flex items-center gap-2">
+              <input
+                id="isActive"
+                type="checkbox"
+                name="isActive"
+                checked={form.isActive}
+                onChange={handleChange}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="isActive">Active</Label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>First Name</Label>
+                <Input name="firstName" value={form.firstName} onChange={handleChange} />
+              </div>
+              <div className="space-y-2">
+                <Label>Last Name</Label>
+                <Input name="lastName" value={form.lastName} onChange={handleChange} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input name="phone" value={form.phone} onChange={handleChange} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Designation</Label>
+              <Input name="designation" value={form.designation} onChange={handleChange} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Department</Label>
+              <Input name="department" value={form.department} onChange={handleChange} />
+            </div>
+          </div>
+
+          {/* Sticky Footer */}
+          <DialogFooter className="px-6 py-4 border-t bg-slate-50">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">{mode === 'create' ? 'Create User' : 'Update User'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }
