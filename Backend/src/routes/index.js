@@ -7,6 +7,9 @@ import stageRoute from "./stage.routes.js";
 import leadRoute from "./lead.routes.js";
 import taskRoutes from './task.routes.js';
 import dashboardRoute from './dashboard.routes.js';
+import taskNotesRouter from "./taskNotes.route.js";
+import taskDocumentsRouter from "./taskDocuments.routes.js";
+import taskCommentsRouter from "./taskComments.routes.js";
 
 const protectedRouter = express.Router();
 const unProtectedRouter = express.Router();
@@ -25,5 +28,8 @@ protectedRouter.use("/stage",stageRoute);
 protectedRouter.use("/leads",leadRoute);
 protectedRouter.use('/tasks', taskRoutes);
 protectedRouter.use("/dashboard",dashboardRoute);
+protectedRouter.use("/taskNotes", taskNotesRouter);
+protectedRouter.use("/taskDocuments", taskDocumentsRouter);
+protectedRouter.use("/taskComments",taskCommentsRouter);
 
 export { unProtectedRouter, protectedRouter };

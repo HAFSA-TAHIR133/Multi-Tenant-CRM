@@ -11,6 +11,10 @@ import PipelineAssignment from './pipeline-assignment.modal.js';
 import RefreshToken from './refresh-token-modal.js';
 import Task from './task.modal.js';
 
+import TaskNoteModel from "./taskNote.model.js";
+import TaskDocumentModel from "./taskDocument.model.js";
+import taskCommentModel from './taskComment.model.js';
+
 
 // Create sequelize instance from env 
 const env = process.env.NODE_ENV || 'development';
@@ -38,6 +42,9 @@ const LeadHistoryModel = LeadHistory(sequelize);
 const PipelineAssignmentModel = PipelineAssignment(sequelize);
 const RefreshTokenModel = RefreshToken(sequelize);
 const TaskModal = Task(sequelize);
+const TaskNote = TaskNoteModel(sequelize);
+const TaskDocument = TaskDocumentModel(sequelize);
+const TaskComment = taskCommentModel(sequelize);
 
 // Associations
 
@@ -276,14 +283,29 @@ TaskModal.belongsTo(PipelineModel, {
 });
 
 // Task ↔ Stage
-StageModel.hasMany(TaskModal, {
-  foreignKey: 'stageId',
-  as: 'tasks',
-});
-TaskModal.belongsTo(StageModel, {
-  foreignKey: 'stageId',
-  as: 'stage',
-});
+StageModel.hasMany(TaskModal, {foreignKey: 'stageId',as: 'tasks',});
+TaskModal.belongsTo(StageModel, {foreignKey: 'stageId',as: 'stage',});
+
+
+TaskModal.hasMany(TaskNote, {foreignKey: "taskId",as: "notes",});
+
+TaskNote.belongsTo(TaskModal, {foreignKey: "taskId",as: "task",});
+
+
+TaskModal.hasMany(TaskDocument, {foreignKey: "taskId",as: "documents",});
+
+TaskDocument.belongsTo(TaskModal, {foreignKey: "taskId",as: "task",});
+
+
+TaskModal.hasMany(TaskComment, {foreignKey: "taskId",as: "comments",});
+
+TaskComment.belongsTo(TaskModal, {foreignKey: "taskId",as: "task",});
+
+
+UserModel.hasMany(TaskComment, {foreignKey: "userId",as: "taskComments",});
+
+TaskComment.belongsTo(UserModel, {foreignKey: "userId",as: "user",});
+
 export {
   sequelize,
   TenantModel as Tenant,
@@ -295,5 +317,8 @@ export {
   LeadHistoryModel as LeadHistory,
   RefreshTokenModel as RefreshToken,
   PipelineAssignmentModel as PipelineAssignment,
-  TaskModal as Task
+  TaskModal as Task,
+  TaskNote,
+  TaskDocument,
+  TaskComment,
 };

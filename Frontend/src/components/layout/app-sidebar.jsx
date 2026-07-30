@@ -1,3 +1,5 @@
+// src/components/layout/app-sidebar.jsx
+
 "use client";
 
 import { NavMain } from "@/components/layout/nav-main";
@@ -22,7 +24,7 @@ import {
   Terminal,
   Users,
   GitFork,
-  User
+  ListTodo,
 } from "lucide-react";
 
 const data = {
@@ -76,7 +78,25 @@ const data = {
         title: "Users",
         url: "/users",
         icon: Users,
-      }
+      },
+      {
+        title: "Tasks",
+        url: "/tasks",
+        icon: ListTodo,
+      },
+    ],
+    [ROLES.USER]: [
+      {
+        title: "Dashboard",
+        url: "/user/dashboard",
+        icon: LayoutDashboard,
+      },
+      // You can add more user-specific items later, e.g.:
+      // {
+      //   title: "Tasks",
+      //   url: "/tasks",
+      //   icon: ListTodo,
+      // },
     ],
   },
 };

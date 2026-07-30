@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { dashboardApi } from '../api/dashboardApi';
+import { leadsApi } from '../../leads/api/leadsApi';
 import DashboardHeader from '../components/DashboardHeader';
 import OverviewCards from '../components/overviewCard';
 import TenantsLineGraph from '../components/TenantsLineGraph';
-import PieChart from '../components/PieChart';
+import PieChart from '../components/pieChart';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { Users, FolderKanban, CheckCircle2, Clock3 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [lineData, setLineData] = useState([]);
-  const [statusData, setStatusData] = useState([]);
+  const [allLeads, setAllLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -22,11 +23,16 @@ export default function AdminDashboard() {
       try {
         const statsRes = await dashboardApi.getAdminStats();
         const lineRes = await dashboardApi.getAdminLineChart();
-        const statusRes = await dashboardApi.getAdminStatusChart();
+        const leadsRes = await leadsApi.getAll();
 
         setStats(statsRes?.data || statsRes || {});
         setLineData(lineRes?.data || lineRes?.items || lineRes || []);
-        setStatusData(statusRes?.data || statusRes?.items || statusRes || []);
+
+        // Normalize leads data
+        const rawLeads = Array.isArray(leadsRes) ? leadsRes :
+                         Array.isArray(leadsRes?.data) ? leadsRes.data :
+                         Array.isArray(leadsRes?.items) ? leadsRes.items : [];
+        setAllLeads(rawLeads);
       } catch (err) {
         setError(err.message || 'Failed to load dashboard');
       } finally {
@@ -36,6 +42,23 @@ export default function AdminDashboard() {
 
     loadDashboard();
   }, []);
+
+  // Compute status distribution from all leads (including closed)
+  const statusData = useMemo(() => {
+    if (!allLeads.length) return [];
+
+    const statusCounts = {};
+    allLeads.forEach((lead) => {
+      const status = (lead.status || 'unknown').toLowerCase().trim();
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
+    return Object.entries(statusCounts).map(([status, count]) => ({
+      label: status === 'close' || status === 'closed' ? 'Closed' : status.charAt(0).toUpperCase() + status.slice(1),
+      value: count,
+      status,
+    }));
+  }, [allLeads]);
 
   const cards = [
     { title: 'Total Leads', value: stats?.totalLeads ?? 0, description: 'All leads in the system', icon: Users },

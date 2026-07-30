@@ -17,4 +17,8 @@ router.delete('/:id',authMiddleware(UserRole.ADMIN),LeadController.deleteLead.bi
 
 router.get('/:id/history',authMiddleware(UserRole.USER),LeadController.getLeadHistory.bind(LeadController));
 
+router.put('/:id/stage',authMiddleware(UserRole.USER),LeadController.updateLeadStage.bind(LeadController));
+
+router.put('/:id/status',authMiddleware(UserRole.USER),LeadController.updateLeadStatus.bind(LeadController));
+
 export default router;

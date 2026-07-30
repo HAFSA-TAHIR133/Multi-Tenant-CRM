@@ -15,7 +15,7 @@ export const userColumns = ({
     Cell: ({ row, cell }) => (
       <button
         type="button"
-        className="text-blue-600 hover:underline"
+        className="text-black hover:text-blue-600 hover:underline hover:cursor-pointer"
         onClick={() => onNameClick?.(row.original)}
       >
         {cell.getValue() || '-'}

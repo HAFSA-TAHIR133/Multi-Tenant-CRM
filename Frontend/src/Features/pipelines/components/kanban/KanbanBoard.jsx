@@ -255,11 +255,10 @@ function DraggableLeadCard({ lead, onClick }) {
           whiteSpace: 'nowrap',
         }}
       >
-        {lead.title ||
-          `${lead.companyName || 'Company'} – ${lead.name || 'Contact'}`}
+        {lead.contactName || lead.title || `${lead.companyName || 'Company'} – Contact`}
       </div>
       <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-        {lead.contactName || 'Contact'}
+        {lead.companyName || 'No company'}
         {lead.value ? ` · $${lead.value}` : ''}
       </div>
     </div>
@@ -375,32 +374,36 @@ export default function KanbanBoard({
 
       /* ---- lead → lead (same or different stage) ---- */
       if (activeId.startsWith('lead-') && overId.startsWith('lead-')) {
-        const lId = activeId.replace('lead-', '');
-        const oLId = overId.replace('lead-', '');
-        const aLead = localLeads.find((l) => String(l.id) === lId);
-        const oLead = localLeads.find((l) => String(l.id) === oLId);
+        const lId = Number(activeId.replace('lead-', ''));
+        const oLId = Number(overId.replace('lead-', ''));
+        const aLead = localLeads.find((l) => Number(l.id) === lId);
+        const oLead = localLeads.find((l) => Number(l.id) === oLId);
         if (!aLead || !oLead) return;
 
-        if (aLead.stageId === oLead.stageId) {
-          const stageLeads = [...(grouped[aLead.stageId] || [])];
-          const oi = stageLeads.findIndex((l) => String(l.id) === lId);
-          const ni = stageLeads.findIndex((l) => String(l.id) === oLId);
+        // Same stage - just reorder within stage
+        if (Number(aLead.stageId) === Number(oLead.stageId)) {
+          const stageLeads = [...(grouped[Number(aLead.stageId)] || [])];
+          const oi = stageLeads.findIndex((l) => Number(l.id) === lId);
+          const ni = stageLeads.findIndex((l) => Number(l.id) === oLId);
           if (oi === -1 || ni === -1) return;
           const reorderedLeads = arrayMove(stageLeads, oi, ni);
           const otherLeads = localLeads.filter(
-            (l) => String(l.stageId) !== String(aLead.stageId)
+            (l) => Number(l.stageId) !== Number(aLead.stageId)
           );
           setLocalLeads([...otherLeads, ...reorderedLeads]);
-          toast.success('Lead reordered');
           return;
         }
 
-        const updated = localLeads.map((l) =>
-          String(l.id) === lId ? { ...l, stageId: oLead.stageId } : l
+        // Different stage - move lead to other lead's stage
+        const targetStageId = Number(oLead.stageId);
+        // Optimistic update
+        setLocalLeads((prev) =>
+          prev.map((l) =>
+            Number(l.id) === lId ? { ...l, stageId: targetStageId } : l
+          )
         );
-        setLocalLeads(updated);
         try {
-          await pipelinesApi.updateLeadStage(lId, oLead.stageId);
+          await pipelinesApi.updateLeadStage(lId, targetStageId);
           toast.success('Lead moved');
           onDataChanged?.();
         } catch {
@@ -412,17 +415,19 @@ export default function KanbanBoard({
 
       /* ---- lead → stage column ---- */
       if (activeId.startsWith('lead-') && overId.startsWith('stage-')) {
-        const lId = activeId.replace('lead-', '');
-        const sId = overId.replace('stage-', '');
-        const aLead = localLeads.find((l) => String(l.id) === lId);
-        if (!aLead || String(aLead.stageId) === sId) return;
+        const lId = Number(activeId.replace('lead-', ''));
+        const sId = Number(overId.replace('stage-', ''));
+        const aLead = localLeads.find((l) => Number(l.id) === lId);
+        if (!aLead || Number(aLead.stageId) === sId) return;
 
-        const updated = localLeads.map((l) =>
-          String(l.id) === lId ? { ...l, stageId: Number(sId) } : l
+        // Optimistic update
+        setLocalLeads((prev) =>
+          prev.map((l) =>
+            Number(l.id) === lId ? { ...l, stageId: sId } : l
+          )
         );
-        setLocalLeads(updated);
         try {
-          await pipelinesApi.updateLeadStage(lId, Number(sId));
+          await pipelinesApi.updateLeadStage(lId, sId);
           toast.success('Lead moved');
           onDataChanged?.();
         } catch {

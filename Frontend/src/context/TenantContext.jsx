@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 export const TenantContext = createContext(null);
-console.log("TenantProvider rendered");
+
 function safeParse(value) {
   try {
     return JSON.parse(value);
@@ -10,43 +10,48 @@ function safeParse(value) {
   }
 }
 
-export const TenantProvider = ({ children })=> {
+export const TenantProvider = ({ children }) => {
   const [activeTenant, setActiveTenant] = useState(() => {
     const stored = safeParse(localStorage.getItem('auth'));
-    return stored?.activeTenant || stored?.tenant || null;
+    return stored?.activeTenant ?? stored?.tenant ?? null;
   });
 
   useEffect(() => {
     const onStorage = () => {
       const stored = safeParse(localStorage.getItem('auth'));
-      setActiveTenant(stored?.activeTenant || stored?.tenant || null);
+      setActiveTenant(stored?.activeTenant ?? stored?.tenant ?? null);
     };
 
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const value = useMemo(() => ({
-    activeTenant,
-    setActiveTenant: (tenant) => {
-      setActiveTenant(tenant);
-      const stored = safeParse(localStorage.getItem('auth')) || {};
-      const next = { ...stored, activeTenant: tenant };
-      localStorage.setItem('auth', JSON.stringify(next));
-    },
-    clearTenant: () => {
-      setActiveTenant(null);
-      const stored = safeParse(localStorage.getItem('auth')) || {};
-      delete stored.activeTenant;
-      localStorage.setItem('auth', JSON.stringify(stored));
-    },
-  }), [activeTenant]);
+  const value = useMemo(
+    () => ({
+      activeTenant,
+      setActiveTenant: (tenant) => {
+        setActiveTenant(tenant);
+        const stored = safeParse(localStorage.getItem('auth')) || {};
+        localStorage.setItem(
+          'auth',
+          JSON.stringify({ ...stored, activeTenant: tenant })
+        );
+      },
+      clearTenant: () => {
+        setActiveTenant(null);
+        const stored = safeParse(localStorage.getItem('auth')) || {};
+        delete stored.activeTenant;
+        localStorage.setItem('auth', JSON.stringify(stored));
+      },
+    }),
+    [activeTenant]
+  );
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
-}
+};
 
-export const useTenant=()=> {
+export const useTenant = () => {
   const ctx = useContext(TenantContext);
   if (!ctx) throw new Error('useTenant must be used within TenantProvider');
   return ctx;
-}
+};

@@ -7,6 +7,15 @@ import {
   Tooltip,
 } from 'recharts';
 
+// Custom status color mapping
+const STATUS_COLOR_MAP = {
+  open: '#000000',      // Black
+  close: '#cbd5e1',     // Light Grey
+  closed: '#cbd5e1',    // Light Grey
+};
+
+const DEFAULT_COLORS = ['#000000', '#cbd5e1', '#64748b', '#94a3b8', '#e2e8f0'];
+
 const defaultData = [
   { label: 'Active', value: 0, color: '#000000' },
   { label: 'Inactive', value: 0, color: '#cbd5e1' },
@@ -39,74 +48,106 @@ export default function PieChart({
   centerLabel = 'Total',
 }) {
   const rawData = useMemo(() => {
-    return Array.isArray(data) && data.length ? data : defaultData;
+    if (!Array.isArray(data) || !data.length) return defaultData;
+
+    return data.map((item, index) => {
+      let label = item.label || item.status || item.name || `Category ${index + 1}`;
+      const value = Number(item.value ?? item.count ?? 0);
+
+      // Normalize 'close' or 'closed' to 'Closed'
+      const lowerKey = label.toLowerCase().trim();
+      if (lowerKey === 'close' || lowerKey === 'closed') {
+        label = 'Closed';
+      }
+
+      // Assign custom color (Light grey for closed, black for open/others)
+      const color = item.color || STATUS_COLOR_MAP[lowerKey] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+
+      return {
+        id: item.id || `pie-item-${lowerKey}-${index}`,
+        label,
+        value: isNaN(value) ? 0 : value,
+        color,
+      };
+    });
   }, [data]);
 
   const total = useMemo(() => {
-    return rawData.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+    return rawData.reduce((acc, curr) => acc + curr.value, 0);
   }, [rawData]);
 
   const chartData = useMemo(() => {
     if (total === 0) {
-      return [{ label: 'No Data', value: 1, color: '#f1f5f9', isPlaceholder: true }];
+      return [{ id: 'placeholder', label: 'No Data', value: 1, color: '#f1f5f9', isPlaceholder: true }];
     }
-    return rawData.filter((item) => item.value > 0 || rawData.length === 1);
+    return rawData.filter((item) => item.value > 0);
   }, [rawData, total]);
 
   return (
-    <div className="flex min-h-[260px] w-full flex-col items-center justify-center gap-4 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm">
-      <div className="flex w-full max-w-[240px] items-center justify-between">
+    <div className="flex min-h-[260px] w-full flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm">
+      {/* Title positioned cleanly at the top */}
+      <div className="w-full">
         <h3 className="text-base font-bold tracking-tight text-slate-900">{title}</h3>
       </div>
 
-      <div className="flex items-center justify-center gap-4">
-        {/* Direct SVG container replacing ResponsiveContainer */}
-        <div className="flex h-32 w-32 items-center justify-center">
-          <RechartsPieChart width={128} height={128}>
+      {/* Chart and Legend area centered below the title */}
+      <div className="flex items-center justify-center gap-6 my-auto">
+        {/* Scaled down pie container (110px width/height) */}
+        <div className="flex h-[110px] w-[110px] items-center justify-center">
+          <RechartsPieChart width={110} height={110}>
             <Tooltip content={<CustomTooltip valueLabel={valueLabel} />} />
             <Pie
               data={chartData}
               dataKey="value"
               nameKey="label"
-              cx={60}
-              cy={60}
-              innerRadius={35}
-              outerRadius={50}
-              paddingAngle={total === 0 ? 0 : 4}
-              cornerRadius={5}
+              cx={55}
+              cy={55}
+              innerRadius={30}
+              outerRadius={44}
+              paddingAngle={total === 0 || chartData.length <= 1 ? 0 : 4}
+              cornerRadius={4}
               stroke="none"
             >
               {chartData.map((entry, index) => (
-                <Cell key={index} fill={entry.color} />
+                <Cell key={`cell-${entry.id}-${index}`} fill={entry.color} />
               ))}
               <Label
-                content={({ viewBox }) => (
-                  <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                    <tspan x={viewBox.cx} dy="-0.5em" className="fill-slate-900 text-lg font-extrabold">
-                      {total}
-                    </tspan>
-                    <tspan x={viewBox.cx} dy="1.2em" className="fill-slate-400 text-[10px] font-medium">
-                      {centerLabel}
-                    </tspan>
-                  </text>
-                )}
+                content={({ viewBox }) => {
+                  const cx = viewBox?.cx ?? 55;
+                  const cy = viewBox?.cy ?? 55;
+                  return (
+                    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+                      <tspan x={cx} dy="-0.1em" className="fill-slate-900 text-base font-extrabold">
+                        {total}
+                      </tspan>
+                      <tspan x={cx} dy="1.3em" className="fill-slate-400 text-[9px] font-medium">
+                        {centerLabel}
+                      </tspan>
+                    </text>
+                  );
+                }}
               />
             </Pie>
           </RechartsPieChart>
         </div>
 
+        {/* Legend */}
         <div className="flex flex-col justify-center gap-2">
-          {rawData.map((item) => (
-            <div key={item.label} className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-slate-800">{item.label}</span>
-                <span className="text-[10px] font-medium text-slate-400">
-                  {item.value} ({total ? ((item.value / total) * 100).toFixed(1) : 0}%)
-                </span>
+          {rawData.map((item, index) => {
+            const percentage = total ? ((item.value / total) * 100).toFixed(1) : '0.0';
+
+            return (
+              <div key={`legend-${item.id}-${index}`} className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-slate-800">{item.label}</span>
+                  <span className="text-[10px] font-medium text-slate-400">
+                    {item.value} ({percentage}%)
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

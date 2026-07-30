@@ -1,0 +1,32 @@
+.note-editor {
+  /* Background and text color similar to your existing design */
+  background-color: rgba(15, 23, 42, 0.7); /* slate-900/70 */
+  color: #e5e7eb; /* gray-200 */
+}
+
+/* Remove default margins */
+.note-editor p {
+  margin: 0;
+}
+
+/* List indentation */
+.note-editor ul,
+.note-editor ol {
+  padding-left: 1.5rem;
+}
+
+/* Optional: heading sizes */
+.note-editor h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.note-editor h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.note-editor h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}

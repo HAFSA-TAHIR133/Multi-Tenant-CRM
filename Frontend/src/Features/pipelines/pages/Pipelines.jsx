@@ -4,8 +4,8 @@ import { ROLES } from '@/constants/roles';
 import { pipelinesApi } from '../api/pipelinesApi';
 import { toast } from 'sonner';
 
-import { Button, TextInput, Textarea, Select, Title, Text, Modal, Stack, LoadingOverlay } from '@mantine/core';
-import { IconPlus, IconPencil, IconTrash, IconSettings } from '@tabler/icons-react';
+import { Button, TextInput, Textarea, Select, Title, Text, Modal, Stack, LoadingOverlay, Badge, Group, Paper } from '@mantine/core';
+import { IconPlus, IconPencil, IconTrash, IconLayoutKanban } from '@tabler/icons-react';
 
 import KanbanBoard from '../components/kanban/KanbanBoard';
 import StageManager from '../components/kanban/StageManager';
@@ -28,7 +28,7 @@ export default function Pipelines() {
 
   // Core Data States
   const [pipelines, setPipelines] = useState([]);
-  const [allLeads, setAllLeads] = useState([]);
+  const [, setAllLeads] = useState([]);
   const [stages, setStages] = useState([]);
   const [leads, setLeads] = useState([]);
 
@@ -61,17 +61,45 @@ export default function Pipelines() {
   const [deletePipeline, setDeletePipeline] = useState(null);
   const [isDeletingPipeline, setIsDeletingPipeline] = useState(false);
 
-  const blackBtnStyle = {
+  // Enhanced Button Styles (Preserving color palette: #111111)
+  const primaryBtnStyle = {
     root: {
       backgroundColor: '#111111',
       color: '#ffffff',
       border: '1px solid #111111',
-      transition: 'all 0.3s ease',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
       fontWeight: 500,
       '&:hover': {
-        backgroundColor: '#ffffff',
-        color: '#111111',
-        border: '1px solid #111111',
+        backgroundColor: '#262626',
+        color: '#ffffff',
+        border: '1px solid #262626',
+        transform: 'translateY(-1px)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+      },
+      '&:active': {
+        transform: 'translateY(0)',
+      },
+    },
+  };
+
+  const secondaryBtnStyle = {
+    root: {
+      backgroundColor: 'black',
+      color: 'white',
+      border: '1px solid #e5e7eb',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+      fontWeight: 500,
+      '&:hover': {
+        backgroundColor: '#f9fafb',
+        borderColor: 'white',
+        transform: 'translateY(-1px)',
+        boxShadow: '0 3px 8px rgba(0,0,0,0.06)',
+        color:"black"
+      },
+      '&:active': {
+        transform: 'translateY(0)',
       },
     },
   };
@@ -181,42 +209,6 @@ export default function Pipelines() {
     }
   }, [selectedLeadId]);
 
-  // Handle Lead Selection & Update Pipeline Lead Assignment
-  const handleLeadChange = async (leadIdStr) => {
-    if (!leadIdStr) {
-      setSelectedLeadId(null);
-      return;
-    }
-
-    const newLeadId = Number(leadIdStr);
-
-    if (!selectedPipelineId) {
-      toast.error('Please select a pipeline first');
-      return;
-    }
-
-    // Set local state immediately for UI responsiveness
-    setSelectedLeadId(newLeadId);
-    setDataLoading(true);
-
-    try {
-      // Call API to update/reassign the lead to the current pipeline
-      if (pipelinesApi.assignLeadToPipeline) {
-        await pipelinesApi.assignLeadToPipeline(selectedPipelineId, newLeadId);
-      } 
-
-      toast.success('Lead updated for this pipeline');
-
-      await loadPipelineData(selectedPipelineId);
-      const updatedAllLeads = await pipelinesApi.getAllLeads();
-      setAllLeads(Array.isArray(updatedAllLeads?.data) ? updatedAllLeads.data : Array.isArray(updatedAllLeads) ? updatedAllLeads : []);
-    } catch (err) {
-      toast.error(err?.message || 'Failed to update lead for this pipeline');
-    } finally {
-      setDataLoading(false);
-    }
-  };
-
   // Pipeline Handlers
   const openCreatePipeline = () => {
     setEditingPipeline(null);
@@ -311,14 +303,6 @@ export default function Pipelines() {
     label: p.name,
   }));
 
-  const leadOptions = [
-    { value: '', label: 'Select Lead' },
-    ...allLeads.map((l) => ({
-      value: String(l.id),
-      label: l.contactName || l.name || l.title || `Lead #${l.id}`,
-    })),
-  ];
-
   return (
     <div style={{ padding: 24, backgroundColor: '#fcfcfc', minHeight: '100vh', position: 'relative' }}>
       <LoadingOverlay visible={loading} overlayProps={{ blur: 2 }} />
@@ -329,23 +313,23 @@ export default function Pipelines() {
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'space-between',
-          marginBottom: 24,
+          marginBottom: 20,
           flexWrap: 'wrap',
           gap: 16,
         }}
       >
         <div>
-          <Title order={2} fw={700} style={{ fontSize: 22 }}>
+          <Title order={2} fw={700} style={{ fontSize: 24, color: '#111111', letterSpacing: '-0.02em' }}>
             Pipelines
           </Title>
           <Text c="dimmed" size="sm" mt={2}>
-            Manage your pipelines and stages in one place.
+            Manage your sales pipelines and stages in one place.
           </Text>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
           <Select
-            label="Pipeline"
+            label="Switch Pipeline"
             placeholder="Select Pipeline"
             data={pipelineOptions}
             value={selectedPipelineId ? String(selectedPipelineId) : null}
@@ -353,19 +337,7 @@ export default function Pipelines() {
               setSelectedPipelineId(val ? Number(val) : null);
             }}
             size="xs"
-            style={{ width: 180 ,input: { cursor: 'pointer' },option: { cursor: 'pointer' }, }}
-          />
-
-          <Select
-            label="Lead"
-            placeholder="Select Lead"
-            data={leadOptions}
-            value={selectedLeadId ? String(selectedLeadId) : ''}
-            onChange={handleLeadChange}
-            size="xs"
-            style={{ width: 180 ,input: { cursor: 'pointer' },option: { cursor: 'pointer' }, }}
-            
-            clearable={false}
+            style={{ width: 190, input: { cursor: 'pointer', fontWeight: 500 }, option: { cursor: 'pointer' } }}
           />
 
           {canManage && (
@@ -374,7 +346,7 @@ export default function Pipelines() {
               onClick={openCreatePipeline}
               size="xs"
               radius="md"
-              styles={blackBtnStyle}
+              styles={primaryBtnStyle}
             >
               Add Pipeline
             </Button>
@@ -393,71 +365,89 @@ export default function Pipelines() {
         <div style={{ position: 'relative' }}>
           <LoadingOverlay visible={dataLoading} overlayProps={{ blur: 1 }} />
 
-          <div
+          {/* Active Pipeline Prominent Card Header */}
+          <Paper
+            p="sm"
+            mb="md"
+            radius="md"
+            withBorder
             style={{
+              borderColor: '#e5e7eb',
+              backgroundColor: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: 16,
+              flexWrap: 'wrap',
+              gap: 12,
             }}
           >
             <div>
-              <Text fw={700} size="md" c="dark">
-                {selectedPipeline.name}
-              </Text>
-              <Text size="xs" c="dimmed" mt={1}>
-                {selectedPipeline.description || 'No description'}
-              </Text>
+              <Group gap="xs" align="center">
+                <Badge
+                  variant="light"
+                  color="gray"
+                  size="sm"
+                  leftSection={<IconLayoutKanban size={11} />}
+                  style={{
+                    backgroundColor: '#f3f4f6',
+                    color: '#374151',
+                    fontWeight: 600,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Pipeline
+                </Badge>
+                <Text fw={700} size="lg" style={{ color: '#111111', lineHeight: 1.2 }}>
+                  {selectedPipeline.name}
+                </Text>
+              </Group>
+              {selectedPipeline.description && (
+                <Text size="xs" c="dimmed" mt={4} style={{ marginLeft: 2 }}>
+                  {selectedPipeline.description}
+                </Text>
+              )}
             </div>
 
             {canManage && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <Button
-                  leftSection={<IconSettings size={14} />}
-                  variant="light"
-                  size="xs"
-                  radius="md"
-                  onClick={() => openStageManager('manage')}
-                  styles={blackBtnStyle}
-                >
-                  Manage Stages
-                </Button>
-
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Button
                   leftSection={<IconPencil size={14} />}
-                  variant="light"
                   size="xs"
                   radius="md"
                   onClick={() => openEditPipeline(selectedPipeline)}
-                  styles={blackBtnStyle}
+                  styles={secondaryBtnStyle}
                 >
                   Edit Pipeline
                 </Button>
 
                 <Button
                   leftSection={<IconPlus size={14} />}
-                  variant="light"
                   size="xs"
                   radius="md"
                   onClick={() => openStageManager('create')}
-                  styles={blackBtnStyle}
+                  styles={secondaryBtnStyle}
                 >
                   Add Stage
                 </Button>
 
                 <Button
                   leftSection={<IconTrash size={14} />}
-                  variant="light"
+                  variant="subtle"
                   color="red"
                   size="xs"
                   radius="md"
                   onClick={() => setDeletePipeline(selectedPipeline)}
+                  style={{
+                    fontWeight: 500,
+                    transition: 'all 0.2s ease',
+                  }}
                 >
                   Delete
                 </Button>
               </div>
             )}
-          </div>
+          </Paper>
 
           <KanbanBoard
             pipeline={selectedPipeline}
@@ -473,7 +463,7 @@ export default function Pipelines() {
         </div>
       ) : (
         !loading && (
-          <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 p-8 text-center">
+          <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 p-8 text-center bg-white">
             <Text c="dimmed" size="sm">
               No pipelines available. Create one to get started!
             </Text>
@@ -483,7 +473,7 @@ export default function Pipelines() {
                 leftSection={<IconPlus size={15} />}
                 onClick={openCreatePipeline}
                 size="xs"
-                styles={blackBtnStyle}
+                styles={primaryBtnStyle}
               >
                 Create Pipeline
               </Button>
@@ -552,7 +542,7 @@ export default function Pipelines() {
               onClick={savePipeline}
               loading={savingPipeline}
               size="xs"
-              styles={blackBtnStyle}
+              styles={primaryBtnStyle}
             >
               {editingPipeline ? 'Update' : 'Save'}
             </Button>

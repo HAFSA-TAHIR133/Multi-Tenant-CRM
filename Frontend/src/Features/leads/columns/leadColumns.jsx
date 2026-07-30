@@ -1,19 +1,26 @@
 import { Button, Group, Select, Text, Badge } from '@mantine/core';
 
 const STATUS_COLORS = {
+  new: 'blue',
   open: 'blue',
-  qualified: 'cyan',
   contacted: 'violet',
+  qualified: 'cyan',
+  proposal: 'orange',
   won: 'green',
   lost: 'red',
+  close: 'gray',
+  closed: 'gray',
 };
 
 const STATUS_OPTIONS = [
+  { value: 'new', label: 'New' },
   { value: 'open', label: 'Open' },
-  { value: 'qualified', label: 'Qualified' },
   { value: 'contacted', label: 'Contacted' },
+  { value: 'qualified', label: 'Qualified' },
+  { value: 'proposal', label: 'Proposal' },
   { value: 'won', label: 'Won' },
   { value: 'lost', label: 'Lost' },
+  { value: 'close', label: 'Closed' },
 ];
 
 export const getLeadColumns = ({ onView, onEdit, onDelete, onStatusChange, canManage }) => [

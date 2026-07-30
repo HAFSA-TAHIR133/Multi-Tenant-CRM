@@ -3,8 +3,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from '../../../components/ui/card';
-import { Badge } from '../../../components/ui/badge';
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -12,8 +12,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../../../components/ui/table';
-import { formatDate } from '../../../lib/dateFormatter';
+} from '@/components/ui/table';
+import { formatDate } from '@/lib/dateFormatter';
 
 export default function RecentUsers({ users = [] }) {
   return (

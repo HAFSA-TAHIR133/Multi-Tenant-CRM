@@ -178,13 +178,22 @@ class DashboardService {
     ];
   }
 
+  getUserId(currentUser) {
+    const userId = currentUser?.id ?? currentUser?._id ?? currentUser?.userId;
+    if (!userId) {
+      throw new Error('User identity missing: currentUser.id is undefined');
+    }
+    return userId;
+  }
+
   async getUserStats(currentUser) {
+    const userId = this.getUserId(currentUser);
     const tenantFilter = this.getTenantFilter(currentUser);
 
     const [assignedTasks, completedTasks, pendingTasks] = await Promise.all([
-      Task.count({ where: { ...tenantFilter, assignedUserId: currentUser.id } }),
-      Task.count({ where: { ...tenantFilter, assignedUserId: currentUser.id, status: 'completed' } }),
-      Task.count({ where: { ...tenantFilter, assignedUserId: currentUser.id, status: 'pending' } }),
+      Task.count({ where: { ...tenantFilter, assignedUserId: userId } }),
+      Task.count({ where: { ...tenantFilter, assignedUserId: userId, status: 'completed' } }),
+      Task.count({ where: { ...tenantFilter, assignedUserId: userId, status: 'pending' } }),
     ]);
 
     return {
@@ -195,10 +204,11 @@ class DashboardService {
   }
 
   async getUserLineChart(currentUser) {
+    const userId = this.getUserId(currentUser);
     const tenantFilter = this.getTenantFilter(currentUser);
 
     const rows = await Task.findAll({
-      where: { ...tenantFilter, assignedUserId: currentUser.id },
+      where: { ...tenantFilter, assignedUserId: userId },
       attributes: ['createdAt'],
       order: [['createdAt', 'ASC']],
     });
@@ -216,14 +226,15 @@ class DashboardService {
   }
 
   async getUserStatusChart(currentUser) {
+    const userId = this.getUserId(currentUser);
     const tenantFilter = this.getTenantFilter(currentUser);
 
     const completedCount = await Task.count({
-      where: { ...tenantFilter, assignedUserId: currentUser.id, status: 'completed' },
+      where: { ...tenantFilter, assignedUserId: userId, status: 'completed' },
     });
 
     const pendingCount = await Task.count({
-      where: { ...tenantFilter, assignedUserId: currentUser.id, status: 'pending' },
+      where: { ...tenantFilter, assignedUserId: userId, status: 'pending' },
     });
 
     return [

@@ -86,6 +86,40 @@ class LeadController {
       return httpResponse.INTERNAL_SERVER_ERROR(res, {}, error.message || ErrorCodesMeta.INTERNAL_SERVER_ERROR.message);
     }
   }
+
+  async updateLeadStage(req, res) {
+    try {
+      const { id } = req.params;
+      const { stageId } = req.body;
+      const result = await LeadService.updateLeadStage(id, stageId, req.user);
+      return httpResponse.SUCCESS(res, result);
+    } catch (error) {
+      if (error.code === ErrorCodesMeta.NOT_FOUND.code) {
+        return httpResponse.NOT_FOUND(res, {}, error.message);
+      }
+      if (error.code === ErrorCodesMeta.FORBIDDEN.code) {
+        return httpResponse.FORBIDDEN(res, {}, error.message);
+      }
+      return httpResponse.BAD_REQUEST(res, {}, error.message || ErrorCodesMeta.BAD_REQUEST.message);
+    }
+  }
+
+  async updateLeadStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const result = await LeadService.updateLeadStatus(id, status, req.user);
+      return httpResponse.SUCCESS(res, result);
+    } catch (error) {
+      if (error.code === ErrorCodesMeta.NOT_FOUND.code) {
+        return httpResponse.NOT_FOUND(res, {}, error.message);
+      }
+      if (error.code === ErrorCodesMeta.FORBIDDEN.code) {
+        return httpResponse.FORBIDDEN(res, {}, error.message);
+      }
+      return httpResponse.BAD_REQUEST(res, {}, error.message || ErrorCodesMeta.BAD_REQUEST.message);
+    }
+  }
 }
 
 export default new LeadController();

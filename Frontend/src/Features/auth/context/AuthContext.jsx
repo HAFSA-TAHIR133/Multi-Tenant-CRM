@@ -16,46 +16,37 @@ export const AuthProvider = ({ children }) => {
   const storedAuth = safeParse(localStorage.getItem("auth"));
 
   const [user, setUser] = useState(storedAuth?.user || null);
-  const [accessToken, setAccessToken] = useState(
-    storedAuth?.accessToken || null
-  );
+  const [accessToken, setAccessToken] = useState(storedAuth?.accessToken || null);
   const [isLoading, setIsLoading] = useState(false);
 
   const { activeTenant, setActiveTenant, clearTenant } = useTenant();
 
-  /**
-   * Persist auth data
-   * Refresh token is NOT stored in localStorage anymore.
-   */
+  // Keep localStorage sync centralized without accidental deletes
   useEffect(() => {
-    if (user || accessToken || activeTenant) {
+    if (user && accessToken) {
+      const currentAuth = safeParse(localStorage.getItem("auth")) || {};
       localStorage.setItem(
         "auth",
         JSON.stringify({
+          ...currentAuth,
           user,
           accessToken,
-          activeTenant,
+          activeTenant: activeTenant || currentAuth.activeTenant || null,
         })
       );
-    } else {
-      localStorage.removeItem("auth");
     }
   }, [user, accessToken, activeTenant]);
 
-  /**
-   * Login
-   */
   const login = async (credentials) => {
     setIsLoading(true);
-
     try {
       const response = await authApi.login(credentials);
-
       const data = response.data;
 
       const nextUser = data.user || null;
       const nextAccessToken = data.accessToken || data.token || null;
 
+      // Normalize tenant structure whether backend sends object or string ID
       const nextTenant =
         data.activeTenant ||
         data.tenant ||
@@ -70,58 +61,34 @@ export const AuthProvider = ({ children }) => {
         setActiveTenant(nextTenant);
       }
 
-      localStorage.setItem(
-        "auth",
-        JSON.stringify({
-          user: nextUser,
-          accessToken: nextAccessToken,
-          activeTenant: nextTenant,
-        })
-      );
-
       return data;
     } finally {
       setIsLoading(false);
     }
   };
 
-  /**
-   * Logout
-   */
   const logout = async () => {
     try {
       await authApi.logout();
     } catch (err) {
-      console.error(err);
+      console.error("Logout failed:", err);
     } finally {
       setUser(null);
       setAccessToken(null);
-
       clearTenant();
-
       localStorage.removeItem("auth");
     }
   };
 
-  /**
-   * Manual Refresh
-   * (fetchApiHelper will normally handle this automatically)
-   */
   const refreshSession = async () => {
     const data = await authApi.refresh();
-
     const nextAccessToken = data.accessToken || data.token;
-
     setAccessToken(nextAccessToken);
 
     const stored = safeParse(localStorage.getItem("auth")) || {};
-
     localStorage.setItem(
       "auth",
-      JSON.stringify({
-        ...stored,
-        accessToken: nextAccessToken,
-      })
+      JSON.stringify({ ...stored, accessToken: nextAccessToken })
     );
 
     return data;
@@ -132,11 +99,8 @@ export const AuthProvider = ({ children }) => {
       user,
       accessToken,
       activeTenant,
-
-      isAuthenticated: !!user && !!accessToken,
-
+      isAuthenticated: Boolean(user && accessToken),
       isLoading,
-
       login,
       logout,
       refreshSession,
@@ -144,19 +108,11 @@ export const AuthProvider = ({ children }) => {
     [user, accessToken, activeTenant, isLoading]
   );
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-
-  if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 };

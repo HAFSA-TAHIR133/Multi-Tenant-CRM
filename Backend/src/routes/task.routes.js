@@ -15,4 +15,6 @@ router.put('/:id',authMiddleware(UserRole.USER),TaskController.updateTask.bind(T
 
 router.delete('/:id',authMiddleware(UserRole.ADMIN),TaskController.deleteTask.bind(TaskController));
 
+router.patch("/:id/stage",authMiddleware(UserRole.USER),TaskController.updateTaskStage.bind(TaskController));
+
 export default router;

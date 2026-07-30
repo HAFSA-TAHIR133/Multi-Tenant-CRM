@@ -3,7 +3,7 @@ import { dashboardApi } from '../api/dashboardApi';
 import DashboardHeader from '../components/DashboardHeader';
 import OverviewCards from '../components/overviewCard';
 import TenantsLineGraph from '../components/TenantsLineGraph';
-import PieChart from '../components/PieChart';
+import PieChart from '../components/pieChart';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { Building2, Users, ShieldCheck, Activity } from 'lucide-react';
 

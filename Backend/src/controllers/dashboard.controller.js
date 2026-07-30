@@ -92,31 +92,40 @@ class DashboardController {
   };
 
   getUserStats = async (req, res) => {
-    try {
-      const result = await DashboardService.getUserStats(req.user);
-      return httpResponse.SUCCESS(res, result);
-    } catch (error) {
-      return handleDashboardError(res, error);
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: User not authenticated' });
     }
-  };
+    const result = await DashboardService.getUserStats(req.user);
+    return httpResponse.SUCCESS(res, result);
+  } catch (error) {
+    return handleDashboardError(res, error);
+  }
+};
 
-  getUserLineChart = async (req, res) => {
-    try {
-      const result = await DashboardService.getUserLineChart(req.user, req.query);
-      return httpResponse.SUCCESS(res, result);
-    } catch (error) {
-      return handleDashboardError(res, error);
+getUserLineChart = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: User not authenticated' });
     }
-  };
+    const result = await DashboardService.getUserLineChart(req.user, req.query);
+    return httpResponse.SUCCESS(res, result);
+  } catch (error) {
+    return handleDashboardError(res, error);
+  }
+};
 
-  getUserStatusChart = async (req, res) => {
-    try {
-      const result = await DashboardService.getUserStatusChart(req.user);
-      return httpResponse.SUCCESS(res, result);
-    } catch (error) {
-      return handleDashboardError(res, error);
+getUserStatusChart = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: User not authenticated' });
     }
-  };
+    const result = await DashboardService.getUserStatusChart(req.user);
+    return httpResponse.SUCCESS(res, result);
+  } catch (error) {
+    return handleDashboardError(res, error);
+  }
+};
 }
 
 export default new DashboardController();

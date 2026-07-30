@@ -290,6 +290,10 @@ const PipelineService = {
 
     return await Lead.findAll({
       where: { pipelineId: id },
+      include: [
+        { model: User, as: 'assignedUser', required: false },
+        { model: Stage, as: 'stage', required: false },
+      ],
       order: [['createdAt', 'DESC']],
     });
   },
@@ -316,6 +320,19 @@ const PipelineService = {
   }
 
   lead.pipelineId = pipelineId;
+
+  // If no stageId is set, assign the first stage of the pipeline
+  if (!lead.stageId) {
+    const firstStage = await Stage.findOne({
+      where: { pipelineId },
+      order: [['order', 'ASC'], ['createdAt', 'ASC']],
+    });
+    if (firstStage) {
+      lead.stageId = firstStage.id;
+    }
+  }
+
+  lead.lastUpdatedBy = user.userId;
   await lead.save();
 
   return lead;

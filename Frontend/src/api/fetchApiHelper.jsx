@@ -13,11 +13,6 @@ function setAuth(nextAuth) {
   localStorage.setItem("auth", JSON.stringify(nextAuth));
 }
 
-/**
- * Refresh Access Token
- * Refresh token is stored inside an HttpOnly Cookie.
- * Browser automatically sends it because of credentials: "include".
- */
 async function refreshAccessToken() {
   const auth = getAuth();
 

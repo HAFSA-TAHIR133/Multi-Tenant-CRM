@@ -47,7 +47,7 @@ export default function LoginForm({ className, ...props }) {
       } else if (role === ROLES.ADMIN) {
         navigate('/admin/dashboard', { replace: true });
       } else {
-        navigate('/login', { replace: true });
+        navigate('/user/dashboard', { replace: true });
       }
     } catch (err) {
       setApiError(err.message || 'Login failed');

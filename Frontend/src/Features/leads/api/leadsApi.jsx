@@ -7,4 +7,6 @@ export const leadsApi = {
   update: (id, data) => fetchApi(`/leads/${id}`, { method: 'PUT', body: data }),
   remove: (id) => fetchApi(`/leads/${id}`, { method: 'DELETE' }),
   getHistory: (id) => fetchApi(`/leads/${id}/history`),
+  updateStage: (id, stageId) => fetchApi(`/leads/${id}/stage`, { method: 'PUT', body: { stageId } }),
+  updateStatus: (id, status) => fetchApi(`/leads/${id}/status`, { method: 'PUT', body: { status } }),
 };

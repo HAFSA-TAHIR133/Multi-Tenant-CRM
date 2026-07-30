@@ -7,7 +7,7 @@ import UserTasksTable from '../components/UserTasksTable';
 import UserActivity from '../components/UserActivity';
 import { useUsers } from '../hooks/useUsers';
 import { usersApi } from '../api/usersApi';
-
+import { Link } from 'react-router-dom';
 function getAuthUser() {
   try {
     return JSON.parse(localStorage.getItem('auth') || 'null');
@@ -31,29 +31,37 @@ export default function UserDetails() {
 
   const isSelf = currentUser && String(user?.id) === String(currentUser.id);
 
-  useEffect(() => {
-    if (!id) return;
-    // If viewing own profile, you can call /user/me in future, but for now /:id works
-    getUserById(id);
-  }, [id, getUserById]);
+// Fetch tasks for this user
+useEffect(() => {
+  if (!user) return;
 
-  // Fetch tasks for this user
-  useEffect(() => {
-    if (!user) return;
+  setTasksLoading(true);
+  usersApi
+    .getTasksForUser(user.id)
+    .then((res) => {
+      console.log('getTasksForUser raw response:', res);
+      const list = Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+        ? res
+        : [];
 
-    setTasksLoading(true);
-    usersApi
-      .getTasksForUser(user.id)
-      .then((res) => {
-        setTasks(Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : []);
-      })
-      .catch(() => {
-        setTasks([]);
-      })
-      .finally(() => {
-        setTasksLoading(false);
-      });
-  }, [user]);
+      console.log('Parsed tasks list:', list);
+      setTasks(list);
+    })
+    .catch((err) => {
+      console.error('getTasksForUser error:', err);
+      setTasks([]);
+    })
+    .finally(() => {
+      setTasksLoading(false);
+    });
+}, [user]);
+
+  useEffect(() => {
+  if (!id) return;
+  getUserById(id);
+}, [id, getUserById]);
 
   const canView =
     currentRole === 3 || // SUPERADMIN
@@ -83,7 +91,9 @@ export default function UserDetails() {
 
   return (
     <div className="p-6 space-y-6">
-      <Button onClick={() => navigate(-1)}>Back</Button>
+      <Link to="/users" className="inline-block text-base text-muted-foreground hover:underline hover:text-blue-400 mb-3">
+        ← Back to Users
+      </Link>
 
       <div className="space-y-4">
         <UserDetailsCard user={user} />

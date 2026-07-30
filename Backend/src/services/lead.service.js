@@ -384,6 +384,113 @@ const LeadService = {
     });
   },
 
+  async updateLeadStage(leadId, stageId, user) {
+    const lead = await Lead.findByPk(leadId);
+    if (!lead) {
+      const err = new Error('Lead not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
+
+    if (user.role === UserRole.ADMIN && String(lead.tenantId) !== String(user.tenantId)) {
+      const err = new Error('Admins can only update leads in their own tenant');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    } else if (user.role === UserRole.USER && String(lead.assignedUserId || '') !== String(user.userId)) {
+      const err = new Error('Users can only update leads assigned to them');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    } else if (user.role !== UserRole.SUPERADMIN && user.role !== UserRole.ADMIN && user.role !== UserRole.USER) {
+      const err = new Error(ErrorCodesMeta.FORBIDDEN.message);
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    }
+
+    const stage = await Stage.findByPk(stageId);
+    if (!stage) {
+      const err = new Error('Stage not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
+
+    if (String(stage.tenantId) !== String(lead.tenantId)) {
+      const err = new Error('Stage must belong to the same tenant as the lead');
+      err.code = ErrorCodesMeta.BAD_REQUEST.code;
+      throw err;
+    }
+
+    const oldStageId = lead.stageId;
+    lead.stageId = stageId;
+    lead.lastUpdatedBy = user.userId;
+    await lead.save();
+
+    await this._logLeadHistory(
+      lead.id,
+      lead.tenantId,
+      user.userId,
+      'UPDATE',
+      'stageId',
+      oldStageId,
+      stageId,
+      'Lead stage changed'
+    );
+
+    return await Lead.findByPk(lead.id, {
+      include: [
+        { model: Pipeline, as: 'pipeline', required: true },
+        { model: Stage, as: 'stage', required: true },
+        { model: User, as: 'assignedUser', required: false },
+      ],
+    });
+  },
+
+  async updateLeadStatus(leadId, status, user) {
+    const lead = await Lead.findByPk(leadId);
+    if (!lead) {
+      const err = new Error('Lead not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
+
+    if (user.role === UserRole.ADMIN && String(lead.tenantId) !== String(user.tenantId)) {
+      const err = new Error('Admins can only update leads in their own tenant');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    } else if (user.role === UserRole.USER && String(lead.assignedUserId || '') !== String(user.userId)) {
+      const err = new Error('Users can only update leads assigned to them');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    } else if (user.role !== UserRole.SUPERADMIN && user.role !== UserRole.ADMIN && user.role !== UserRole.USER) {
+      const err = new Error(ErrorCodesMeta.FORBIDDEN.message);
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    }
+
+    const oldStatus = lead.status;
+    lead.status = status;
+    lead.lastUpdatedBy = user.userId;
+    await lead.save();
+
+    await this._logLeadHistory(
+      lead.id,
+      lead.tenantId,
+      user.userId,
+      'UPDATE',
+      'status',
+      oldStatus,
+      status,
+      'Lead status changed'
+    );
+
+    return await Lead.findByPk(lead.id, {
+      include: [
+        { model: Pipeline, as: 'pipeline', required: true },
+        { model: Stage, as: 'stage', required: true },
+        { model: User, as: 'assignedUser', required: false },
+      ],
+    });
+  },
+
   async _logLeadHistory(leadId, tenantId, changedBy, action, fieldName, oldValue, newValue, description) {
     await LeadHistory.create({
       tenantId,
