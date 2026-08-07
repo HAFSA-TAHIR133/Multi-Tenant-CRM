@@ -6,7 +6,6 @@ import postgresLoader from "./loaders/postgres.js";
 
 const app = express();
 
-// 1. Explicitly enable CORS at the root level before any routes
 const allowedOrigins = [
   "http://localhost:5173",
   "https://multi-tenant-crm-8omk.vercel.app",
@@ -23,29 +22,33 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-Id", "Accept"]
+  allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-Id", "Accept"],
+  optionsSuccessStatus: 200 // Ensures legacy browsers/proxies pass OPTIONS checks
 };
 
+// 1. Mount CORS middleware globally
 app.use(cors(corsOptions));
+
+// 2. Handle preflight requests for all endpoints explicitly
 app.options("*", cors(corsOptions));
 
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 2. Health check route
+// 3. Health check route
 app.get("/status", (req, res) => {
   res.status(200).json({ status: "OK", message: "Backend is running!" });
 });
 
-// 3. Connect DB asynchronously without blocking serverless function boot
+// 4. Connect DB asynchronously without blocking serverless execution
 postgresLoader().catch((err) => console.error("DB Connection Error:", err));
 
-// 4. Mount Routers directly
+// 5. Mount API Routes
 app.use("/api/v1", unProtectedRouter);
 app.use("/api/v1", protectedRouter);
 
-// 5. Explicit 404 JSON response (prevents HTML 404 pages)
+// 6. Express 404 JSON fallback
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
 });
