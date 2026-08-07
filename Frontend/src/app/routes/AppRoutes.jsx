@@ -5,7 +5,7 @@ import { ROLES } from '../../constants/roles';
 
 import RootRedirect from './RouteRedirect'; 
 
-import SuperAdminDashboard from '../../Features/dashboard/pages/SuperAdminDashboard';
+import SuperAdminDashboard from '../../Features/dashboard/pages/SuperadminDashboard';
 import AdminDashboard from '../../Features/dashboard/pages/AdminDashboard';
 import UserDashboard from '../../Features/dashboard/pages/UserDashboard'; 
 
