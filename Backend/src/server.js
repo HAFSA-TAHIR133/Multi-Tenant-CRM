@@ -26,34 +26,34 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+// Enable CORS for ALL routes & preflights automatically
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
 
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Middleware to lazily initialize Postgres connection per request without crashing boot
+// Lazily connect DB per invocation without crashing app startup
 app.use(async (req, res, next) => {
   try {
     await postgresLoader();
     next();
   } catch (err) {
-    console.error("Database connection error on invocation:", err);
-    next(); // Pass to routes/middleware even if DB has an issue to avoid total function crash
+    console.error("DB Connection Error:", err);
+    next();
   }
 });
 
-// Health check endpoint
+// Health check route
 app.get("/status", (req, res) => {
   res.status(200).json({ status: "OK", message: "Backend is running!" });
 });
 
-// Mount Routers
+// Routers
 app.use("/api/v1", unProtectedRouter);
 app.use("/api/v1", protectedRouter);
 
-// JSON 404 handler
+// 404 Fallback
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
 });
