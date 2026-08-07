@@ -23,37 +23,41 @@ const corsOptions = {
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-Id", "Accept"],
-  optionsSuccessStatus: 200 // Ensures legacy browsers/proxies pass OPTIONS checks
+  optionsSuccessStatus: 200
 };
 
-// 1. Mount CORS middleware globally
 app.use(cors(corsOptions));
-
-// 2. Handle preflight requests for all endpoints explicitly
 app.options("*", cors(corsOptions));
 
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 3. Health check route
+// Middleware to lazily initialize Postgres connection per request without crashing boot
+app.use(async (req, res, next) => {
+  try {
+    await postgresLoader();
+    next();
+  } catch (err) {
+    console.error("Database connection error on invocation:", err);
+    next(); // Pass to routes/middleware even if DB has an issue to avoid total function crash
+  }
+});
+
+// Health check endpoint
 app.get("/status", (req, res) => {
   res.status(200).json({ status: "OK", message: "Backend is running!" });
 });
 
-// 4. Connect DB asynchronously without blocking serverless execution
-postgresLoader().catch((err) => console.error("DB Connection Error:", err));
-
-// 5. Mount API Routes
+// Mount Routers
 app.use("/api/v1", unProtectedRouter);
 app.use("/api/v1", protectedRouter);
 
-// 6. Express 404 JSON fallback
+// JSON 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
 });
 
-// Local dev listener
 if (process.env.NODE_ENV !== "production") {
   app.listen(5000, () => console.log("Server running on port 5000"));
 }
