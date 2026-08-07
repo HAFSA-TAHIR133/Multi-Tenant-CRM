@@ -1,8 +1,8 @@
+// express.js
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import { initOverdueTaskCron } from "../jobs/overdueChecker.js";
 import '../config/cloudinary.js';
@@ -11,46 +11,45 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const expressLoader = async ({ app }) => {
-    // Dynamic CORS to allow both local development and live production URLs
-    const allowedOrigins = [
-        'http://localhost:5173',
-        process.env.CLIENT_URL, // Add your frontend live domain in .env (e.g., https://your-app.vercel.app)
-    ].filter(Boolean);
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'https://multi-tenant-crm-8omk.vercel.app',
+    'https://multi-tenant-crm-8omk-git-main-hafsa11.vercel.app'
+  ];
 
-    app.use(cors({
-        origin: (origin, callback) => {
-            // Allow requests with no origin (like mobile apps or curl)
-            if (!origin || allowedOrigins.includes(origin)) {
-                callback(null, true);
-            } else {
-                callback(null, true); // Or set to callback(new Error('Not allowed by CORS')) to strictly block
-            }
-        },
-        credentials: true                
-    }));
+  const corsOptions = {
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allows all during testing or enforce with: callback(new Error('Blocked by CORS'))
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'Accept']
+  };
+
+  // Enable CORS middleware
+  app.use(cors(corsOptions));
+
+  // Explicitly answer preflight OPTIONS requests across all endpoints
+  app.options('*', cors(corsOptions));
     
-    app.use(cookieParser());
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true }));
+  app.use(cookieParser());
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
-    app.get('/status', (req, res) => {
-        res.status(200).json({ status: 'OK', message: 'Backend Server is healthy!' });
-    });
+  app.get('/status', (req, res) => {
+    res.status(200).json({ status: 'OK', message: 'Backend Server is healthy!' });
+  });
 
-    // Initialize background cron worker on server start
+  // Initialize background cron worker only outside serverless environments
+  if (process.env.NODE_ENV !== "production") {
     initOverdueTaskCron();
+  }
 
-    // Global Error Handling Middleware
-    app.use((err, req, res, next) => {
-        const statusCode = err.statusCode || 500;
-        res.status(statusCode).json({
-            success: false,
-            message: err.message || 'Internal Server Error',
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-        });
-    });
-
-    return app;
+  return app;
 };
 
 export default expressLoader;
