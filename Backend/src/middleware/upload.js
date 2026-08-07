@@ -2,10 +2,12 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { httpResponse } from '../utils/httpResponse.js';
 
-// Ensure temp upload folder exists
-const uploadDir = path.join(process.cwd(), 'uploads', 'temp');
+// Use OS temporary directory in production/Vercel serverless environments
+const uploadDir = path.join(os.tmpdir(), 'uploads', 'temp');
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -24,8 +26,7 @@ const storage = multer.diskStorage({
 const rawUpload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  // no fileFilter → accept all types
-}).single('file'); // field name must be "file"
+}).single('file');
 
 export const uploadSingleDocument = (req, res, next) => {
   rawUpload(req, res, (err) => {
