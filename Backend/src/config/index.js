@@ -1,13 +1,26 @@
-import pkg from "pg";
-import { env } from "./env.js";
+import { Sequelize } from "sequelize";
+import { env } from "./env.js"; // or process.env
 
-const { Pool } = pkg;
+const isProduction = process.env.NODE_ENV === "production";
 
-const pool = new Pool({
-  connectionString: env.databaseUrl,
-  ssl: {
-    rejectUnauthorized: false, // Required by Neon
-  },
-});
-
-export default pool;
+export const sequelize = process.env.DATABASE_URL
+  ? new Sequelize(process.env.DATABASE_URL, {
+      dialect: "postgres",
+      logging: false,
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false, // Required for Neon cloud DB
+        },
+      },
+    })
+  : new Sequelize(
+      process.env.DB_NAME,
+      process.env.DB_USER,
+      process.env.DB_PASSWORD,
+      {
+        host: process.env.DB_HOST || "localhost",
+        dialect: "postgres",
+        port: process.env.DB_PORT || 5432,
+      }
+    );
