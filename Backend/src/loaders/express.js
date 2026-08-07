@@ -11,31 +11,40 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const expressLoader = async ({ app }) => {
+  // Define explicit allowed origins
   const allowedOrigins = [
     'http://localhost:5173',
     'https://multi-tenant-crm-8omk.vercel.app',
-    'https://multi-tenant-crm-8omk-git-main-hafsa11.vercel.app'
+    'https://multi-tenant-crm-8omk-git-main-hafsa11.vercel.app',
   ];
 
   const corsOptions = {
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (mobile apps, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+
+      // Check exact match or any Vercel deployment preview URL pattern for this project
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        /^https:\/\/multi-tenant-crm-[a-z0-9-]+-hafsa11\.vercel\.app$/.test(origin) ||
+        origin === process.env.CLIENT_URL;
+
+      if (isAllowed) {
         callback(null, true);
       } else {
-        callback(null, true); // Allows all during testing or enforce with: callback(new Error('Blocked by CORS'))
+        callback(new Error('Blocked by CORS policy'));
       }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'Accept']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'Accept'],
   };
 
-  // Enable CORS middleware
   app.use(cors(corsOptions));
-
-  // Explicitly answer preflight OPTIONS requests across all endpoints
+  
+  // Handle preflight requests for all endpoints
   app.options('*', cors(corsOptions));
-    
+
   app.use(cookieParser());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
