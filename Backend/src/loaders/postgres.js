@@ -19,6 +19,7 @@ const postgresLoader = async () => {
   } catch (error) {
     console.error("Unable to connect to database:", error);
     process.exit(1);
+    throw error; // Let Express catch the error gracefully
   }
 };
 
