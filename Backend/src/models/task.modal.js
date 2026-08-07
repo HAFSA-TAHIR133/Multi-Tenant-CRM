@@ -19,14 +19,6 @@ export default (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      pipelineId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      stageId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
       title: {
         type: DataTypes.STRING,
         allowNull: false,

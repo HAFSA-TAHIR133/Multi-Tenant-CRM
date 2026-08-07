@@ -91,12 +91,23 @@ const data = {
         url: "/user/dashboard",
         icon: LayoutDashboard,
       },
-      // You can add more user-specific items later, e.g.:
-      // {
-      //   title: "Tasks",
-      //   url: "/tasks",
-      //   icon: ListTodo,
-      // },
+      
+      {
+         title: "Leads",
+         url: "/user/leads",
+         icon: ListTodo,
+       },
+       {
+          title: "User",
+         url: "/user/users",
+         icon: Users,
+       },
+       {
+        title: "Tasks",
+        url: "/user/tasks",
+        icon: ListTodo,
+      }
+       
     ],
   },
 };

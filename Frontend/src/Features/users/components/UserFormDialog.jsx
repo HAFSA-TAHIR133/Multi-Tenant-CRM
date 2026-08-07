@@ -16,6 +16,7 @@ export default function UserFormDialog({
   open,
   onOpenChange,
   onSubmit,
+  isAdmin = true, // Added isAdmin prop to toggle field permissions
 }) {
   const [form, setForm] = useState({
     name: '',
@@ -94,41 +95,62 @@ export default function UserFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle>{mode === 'create' ? 'Add User' : 'Edit User'}</DialogTitle>
+          <DialogTitle>
+            {mode === 'create' ? 'Add User' : isAdmin ? 'Edit User' : 'Edit Profile'}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
           {/* Scrollable Body */}
           <div className="space-y-4 px-6 overflow-y-auto flex-1 pb-4">
+            
+            {/* Editable for All - Required */}
             <div className="space-y-2">
-              <Label>Name *</Label>
+              <Label>
+                Name <span className="text-red-500">*</span>
+              </Label>
               <Input name="name" value={form.name} onChange={handleChange} required />
             </div>
 
+            {/* Editable for All - Required */}
             <div className="space-y-2">
-              <Label>Email *</Label>
+              <Label>
+                Email <span className="text-red-500">*</span>
+              </Label>
               <Input type="email" name="email" value={form.email} onChange={handleChange} required />
             </div>
 
+            {/* Password - Disabled for Regular Users */}
             <div className="space-y-2">
-              <Label>Password{mode === 'create' ? ' *' : ''}</Label>
+              <Label>
+                Password{mode === 'create' && <span className="text-red-500"> *</span>}
+              </Label>
               <Input
                 type="password"
                 name="password"
                 value={form.password}
                 onChange={handleChange}
-                placeholder={mode === 'edit' ? 'Leave blank to keep current password' : ''}
+                placeholder={
+                  !isAdmin
+                    ? 'Password managed by administrator'
+                    : mode === 'edit'
+                    ? 'Leave blank to keep current password'
+                    : ''
+                }
                 required={mode === 'create'}
+                disabled={!isAdmin}
               />
             </div>
 
+            {/* Role - Disabled for Regular Users */}
             <div className="space-y-2">
               <Label>Role</Label>
               <select
                 name="role"
                 value={form.role}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                disabled={!isAdmin}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="1">User</option>
                 <option value="2">Admin</option>
@@ -136,6 +158,7 @@ export default function UserFormDialog({
               </select>
             </div>
 
+            {/* Active Status - Disabled for Regular Users */}
             <div className="space-y-2 flex items-center gap-2">
               <input
                 id="isActive"
@@ -143,11 +166,15 @@ export default function UserFormDialog({
                 name="isActive"
                 checked={form.isActive}
                 onChange={handleChange}
-                className="h-4 w-4 rounded border-gray-300"
+                disabled={!isAdmin}
+                className="h-4 w-4 rounded border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
               />
-              <Label htmlFor="isActive">Active</Label>
+              <Label htmlFor="isActive" className={!isAdmin ? 'opacity-50' : ''}>
+                Active
+              </Label>
             </div>
 
+            {/* First Name & Last Name - Editable for All */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>First Name</Label>
@@ -159,28 +186,43 @@ export default function UserFormDialog({
               </div>
             </div>
 
+            {/* Phone - Editable for All */}
             <div className="space-y-2">
               <Label>Phone</Label>
               <Input name="phone" value={form.phone} onChange={handleChange} />
             </div>
 
+            {/* Designation - Disabled for Regular Users */}
             <div className="space-y-2">
               <Label>Designation</Label>
-              <Input name="designation" value={form.designation} onChange={handleChange} />
+              <Input
+                name="designation"
+                value={form.designation}
+                onChange={handleChange}
+                disabled={!isAdmin}
+              />
             </div>
 
+            {/* Department - Disabled for Regular Users */}
             <div className="space-y-2">
               <Label>Department</Label>
-              <Input name="department" value={form.department} onChange={handleChange} />
+              <Input
+                name="department"
+                value={form.department}
+                onChange={handleChange}
+                disabled={!isAdmin}
+              />
             </div>
           </div>
 
           {/* Sticky Footer */}
-          <DialogFooter className="px-6 py-4 border-t bg-slate-50">
+          <DialogFooter className="px-6 py-4 border-t bg-slate-50 dark:bg-slate-800/50 dark:border-slate-800">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">{mode === 'create' ? 'Create User' : 'Update User'}</Button>
+            <Button type="submit">
+              {mode === 'create' ? 'Create User' : 'Update Profile'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1,9 +1,9 @@
 import { Model, DataTypes } from "sequelize";
 
 export default (sequelize) => {
-  class TaskNote extends Model {}
+  class LeadDocument extends Model {}
 
-  TaskNote.init(
+  LeadDocument.init(
     {
       id: {
         type: DataTypes.INTEGER,
@@ -11,7 +11,7 @@ export default (sequelize) => {
         autoIncrement: true,
         allowNull: false,
       },
-      taskId: {
+      leadId: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
@@ -19,17 +19,17 @@ export default (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      content: {
-        type: DataTypes.TEXT,
+      name: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      url: {
+        type: DataTypes.STRING,
         allowNull: false,
       },
       createdBy: {
         type: DataTypes.INTEGER,
         allowNull: false,
-      },
-      updatedBy: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
       },
       createdAt: {
         type: DataTypes.DATE,
@@ -44,13 +44,13 @@ export default (sequelize) => {
     },
     {
       sequelize,
-      modelName: "TaskNote",
-      tableName: "TaskNotes",
+      modelName: "LeadDocument",
+      tableName: "LeadDocuments",
       timestamps: true,
       createdAt: "createdAt",
       updatedAt: "updatedAt",
     }
   );
 
-  return TaskNote;
+  return LeadDocument;
 };

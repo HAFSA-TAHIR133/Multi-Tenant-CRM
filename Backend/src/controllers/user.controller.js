@@ -5,7 +5,7 @@ import { ErrorCodesMeta } from '../constants/error-codes.js';
 class UserController {
   async getMe(req, res) {
     try {
-      const result = await UserService.getUserById(req.user.id, req.user);
+      const result = await UserService.getUserById(req.user.userId, req.user);
       return httpResponse.SUCCESS(res, result);
     } catch (error) {
       if (error.code === ErrorCodesMeta.NOT_FOUND.code) {
@@ -24,7 +24,7 @@ class UserController {
 
   async updateMe(req, res) {
     try {
-      const result = await UserService.updateUser(req.user.id, req.body, req.user);
+      const result = await UserService.updateUser(req.user.userId, req.body, req.user);
       return httpResponse.SUCCESS(res, result);
     } catch (error) {
       if (error.code === ErrorCodesMeta.CONFLICT.code) {

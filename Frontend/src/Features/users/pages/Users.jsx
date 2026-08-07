@@ -6,6 +6,7 @@ import { userColumns } from '../columns/userColumns';
 import UserFormDialog from '../components/UserFormDialog';
 import UserDeleteDialog from '../components/UserDeleteDialog';
 import { useUsers } from '../hooks/useUsers';
+import { Pencil, Plus } from 'lucide-react';
 
 function getAuthUser() {
   try {
@@ -25,13 +26,22 @@ export default function Users() {
   const [deleteUserItem, setDeleteUserItem] = useState(null);
 
   const auth = getAuthUser();
-  const currentRole = auth?.user?.role || auth?.role;
+  const currentUser = auth?.user || auth;
+  const currentUserId = currentUser?.id || currentUser?.userId;
+  const currentRole = currentUser?.role;
 
+  // Role check: Role 2 = Admin, Role 3 = SuperAdmin
   const isAdminOrSuperAdmin = currentRole === 2 || currentRole === 3;
 
   useEffect(() => {
     getAllUsers();
   }, [getAllUsers]);
+
+  // Filter list: Admins see everyone, standard users see ONLY themselves
+  const displayedUsers = useMemo(() => {
+    if (isAdminOrSuperAdmin) return users;
+    return users.filter((u) => String(u.id) === String(currentUserId));
+  }, [users, isAdminOrSuperAdmin, currentUserId]);
 
   const handleCreate = async (payload) => {
     await createUser(payload);
@@ -40,6 +50,7 @@ export default function Users() {
   };
 
   const handleEdit = async (payload) => {
+    if (!editUser) return;
     await updateUser(editUser.id, payload);
     setEditUser(null);
     await getAllUsers();
@@ -59,47 +70,73 @@ export default function Users() {
     await getAllUsers();
   };
 
+  // Only allow navigation for Admins/SuperAdmins
   const handleNameClick = (userItem) => {
-    navigate(`/users/${userItem.id}`);
+    if (isAdminOrSuperAdmin) {
+      navigate(`/users/${userItem.id}`);
+    }
+  };
+
+  // Handler for opening the Edit Profile dialog for regular user
+  const handleEditOwnProfile = () => {
+    const myProfile = displayedUsers[0] || currentUser;
+    setEditUser(myProfile);
   };
 
   const columns = useMemo(
     () =>
       userColumns({
-        onEdit: isAdminOrSuperAdmin ? setEditUser : undefined,
+        onEdit: (userItem) => setEditUser(userItem),
         onDelete: isAdminOrSuperAdmin ? setDeleteUserItem : undefined,
         onToggleStatus: isAdminOrSuperAdmin ? handleToggleStatus : undefined,
-        onNameClick: handleNameClick,
-        showActions: isAdminOrSuperAdmin,
+        // Disable name click for regular users so they don't shift to details page
+        onNameClick: isAdminOrSuperAdmin ? handleNameClick : undefined,
+        showActions: true,
         currentUserRole: currentRole,
       }),
-    [isAdminOrSuperAdmin, currentRole]
+    [isAdminOrSuperAdmin, currentRole, displayedUsers]
   );
 
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Users</h1>
-        {isAdminOrSuperAdmin && (
-          <Button onClick={() => setCreateOpen(true)}>Add User</Button>
+        <h1 className="text-2xl font-semibold">
+          {isAdminOrSuperAdmin ? 'Users' : 'My Profile'}
+        </h1>
+
+        {/* Dynamic Button: Add User for Admin, Edit Profile for Standard User */}
+        {isAdminOrSuperAdmin ? (
+          <Button onClick={() => setCreateOpen(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add User
+          </Button>
+        ) : (
+          <Button onClick={handleEditOwnProfile} className="flex items-center gap-2">
+            <Pencil className="h-4 w-4" />
+            Edit Profile
+          </Button>
         )}
       </div>
 
-      <DataTable columns={columns} data={users} loading={loading} />
+      <DataTable columns={columns} data={displayedUsers} loading={loading} />
 
+      {/* Create Dialog - Always Admin mode */}
       <UserFormDialog
         mode="create"
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSubmit={handleCreate}
+        isAdmin={isAdminOrSuperAdmin}
       />
 
+      {/* Edit Dialog - Dynamically passes isAdmin status */}
       <UserFormDialog
         mode="edit"
         user={editUser}
         open={!!editUser}
         onOpenChange={(open) => !open && setEditUser(null)}
         onSubmit={handleEdit}
+        isAdmin={isAdminOrSuperAdmin}
       />
 
       {deleteUserItem && (

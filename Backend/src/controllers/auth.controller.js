@@ -1,7 +1,21 @@
 import { AuthService } from '../services/index.js';
-import { ErrorCodesMeta, SuccessCodesMeta, UserRole } from '../constants/index.js';
+import { ErrorCodesMeta } from '../constants/index.js';
 import { httpResponse } from '../utils/httpResponse.js';
 
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  path: '/',
+};
+
+const CLEAR_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  path: '/',
+};
 
 class AuthController {
   async createUser(req, res) {
@@ -18,8 +32,7 @@ class AuthController {
         role: user.role,
         tenantId: user.tenantId,
       });
-    } 
-	catch (error) {
+    } catch (error) {
       console.error('Create user error:', error);
 
       if (error.code === ErrorCodesMeta.USER_ALREADY_EXISTS.code) {
@@ -30,127 +43,133 @@ class AuthController {
         );
       }
 
-      return httpResponse.BAD_REQUEST(res, {}, error.message || 'Failed to create user');
+      return httpResponse.BAD_REQUEST(
+        res,
+        {},
+        error.message || 'Failed to create user'
+      );
     }
   }
 
-   async login(req, res) {
-  try {
-    const { email, password } = req.body;
+  async login(req, res) {
+    try {
+      const { email, password } = req.body;
 
-    const result = await AuthService.login(email, password);
+      const result = await AuthService.login(email, password);
 
-    res.cookie("refreshToken", result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/",
-    });
+      res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
 
-    return httpResponse.SUCCESS(res, {
-      accessToken: result.accessToken,
-      user: result.user,
-    });
-  } catch (error) {
-    if (error.code === ErrorCodesMeta.UNAUTHORIZED.code) {
-      return httpResponse.UNAUTHORIZED(res, {}, error.message);
+      return httpResponse.SUCCESS(res, {
+        accessToken: result.accessToken,
+        user: result.user,
+      });
+    } catch (error) {
+      if (error.code === ErrorCodesMeta.UNAUTHORIZED.code) {
+        return httpResponse.UNAUTHORIZED(res, {}, error.message);
+      }
+
+      return httpResponse.BAD_REQUEST(
+        res,
+        {},
+        error.message || ErrorCodesMeta.BAD_REQUEST.message
+      );
     }
-
-    return httpResponse.BAD_REQUEST(
-      res,
-      {},
-      error.message || ErrorCodesMeta.BAD_REQUEST.message
-    );
   }
-}
+
+  async googleLogin(req, res) {
+    try {
+      const { code } = req.body;
+
+      const result = await AuthService.googleLogin(code);
+
+      res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+
+      return httpResponse.SUCCESS(res, {
+        accessToken: result.accessToken,
+        user: result.user,
+      });
+    } catch (error) {
+      if (error.code === ErrorCodesMeta.FORBIDDEN.code) {
+        return httpResponse.FORBIDDEN(res, {}, error.message);
+      }
+
+      if (error.code === ErrorCodesMeta.UNAUTHORIZED.code) {
+        return httpResponse.UNAUTHORIZED(res, {}, error.message);
+      }
+
+      return httpResponse.BAD_REQUEST(
+        res,
+        {},
+        error.message || ErrorCodesMeta.BAD_REQUEST.message
+      );
+    }
+  }
 
   async refreshAccessToken(req, res) {
-  try {
-    console.log("COOKIE:");
-    console.log(req.cookies);
-    const refreshToken = req.cookies?.refreshToken;
-    
+    try {
+      const refreshToken = req.cookies?.refreshToken;
 
-    if (!refreshToken) {
-      const err = new Error("Refresh token required");
-      err.code = ErrorCodesMeta.UNAUTHORIZED.code;
-      throw err;
+      if (!refreshToken) {
+        const err = new Error('Refresh token required');
+        err.code = ErrorCodesMeta.UNAUTHORIZED.code;
+        throw err;
+      }
+
+      const result = await AuthService.refreshToken(refreshToken);
+
+      // Rotate: set the NEW refresh token cookie
+      res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+
+      return httpResponse.SUCCESS(res, {
+        accessToken: result.accessToken,
+      });
+    } catch (error) {
+      // Always clear the cookie with matching path "/" so it is actually removed
+      res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
+
+      if (error.code === ErrorCodesMeta.UNAUTHORIZED.code) {
+        return httpResponse.UNAUTHORIZED(res, {}, error.message);
+      }
+
+      return httpResponse.BAD_REQUEST(
+        res,
+        {},
+        error.message || ErrorCodesMeta.BAD_REQUEST.message
+      );
     }
-
-    const result = await AuthService.refreshToken(refreshToken);
-
-    res.cookie("refreshToken", result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/",
-    });
-    
-
-    return httpResponse.SUCCESS(res, {
-      accessToken: result.accessToken,
-    });
-
-  } catch (error) {
-
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/api/v1/auth/refresh",
-    });
-
-    if (error.code === ErrorCodesMeta.UNAUTHORIZED.code) {
-      return httpResponse.UNAUTHORIZED(res, {}, error.message);
-    }
-
-    return httpResponse.BAD_REQUEST(
-      res,
-      {},
-      error.message || ErrorCodesMeta.BAD_REQUEST.message
-    );
   }
-}
 
   async logout(req, res) {
-  try {
-    const refreshToken = req.cookies?.refreshToken;
+    try {
+      const refreshToken = req.cookies?.refreshToken;
 
-    if (refreshToken) {
-      await AuthService.logout(refreshToken);
+      if (refreshToken) {
+        await AuthService.logout(refreshToken);
+      }
+
+      res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
+
+      return httpResponse.SUCCESS(res, {
+        message: 'Logged out successfully',
+      });
+    } catch (error) {
+      return httpResponse.BAD_REQUEST(
+        res,
+        {},
+        error.message || ErrorCodesMeta.BAD_REQUEST.message
+      );
     }
-
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      path: "/",
-    });
-
-    return httpResponse.SUCCESS(res, {
-      message: "Logged out successfully",
-    });
-
-  } catch (error) {
-
-    return httpResponse.BAD_REQUEST(
-      res,
-      {},
-      error.message || ErrorCodesMeta.BAD_REQUEST.message
-    );
   }
-}
 
   async logoutAll(req, res) {
     try {
       const userId = req.user.userId;
       const result = await AuthService.logoutAll(userId);
 
+      res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
+
       return httpResponse.SUCCESS(res, result);
-    } 
-	catch (error) {
+    } catch (error) {
       console.error('Logout all error:', error);
       return httpResponse.BAD_REQUEST(
         res,
@@ -166,8 +185,7 @@ class AuthController {
       const result = await AuthService.forgotPassword(email);
 
       return httpResponse.SUCCESS(res, result);
-    } 
-	catch (error) {
+    } catch (error) {
       console.error('Forgot password error:', error);
       return httpResponse.BAD_REQUEST(
         res,
@@ -183,8 +201,7 @@ class AuthController {
       const result = await AuthService.resetPassword(token, password);
 
       return httpResponse.SUCCESS(res, result);
-    } 
-	catch (error) {
+    } catch (error) {
       console.error('Reset password error:', error);
       return httpResponse.BAD_REQUEST(
         res,

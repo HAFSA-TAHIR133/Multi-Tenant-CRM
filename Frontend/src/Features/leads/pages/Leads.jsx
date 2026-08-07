@@ -10,47 +10,32 @@ import { Button, TextInput } from '@mantine/core';
 import { IconSearch, IconPlus } from '@tabler/icons-react';
 
 import AddLeadDialog from '../components/AddLeadDialog';
-import EditLeadDialog from '../components/EditLeadDialog';
-
-// Delete Dialog using Shadcn UI AlertDialog
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 export default function Leads() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const role = user?.role;
+
   const canManage = [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(role);
 
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [globalFilter, setGlobalFilter] = useState('');
-
   const [addOpen, setAddOpen] = useState(false);
-  const [editLead, setEditLead] = useState(null);
-  const [deleteLead, setDeleteLead] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadLeads = async () => {
     setLoading(true);
     setError('');
     try {
       const res = await leadsApi.getAll();
-      const normalized =
+      const normalizedLeads =
         Array.isArray(res) ? res :
         Array.isArray(res?.items) ? res.items :
         Array.isArray(res?.data) ? res.data :
         [];
-      setLeads(normalized);
+
+      setLeads(normalizedLeads);
     } catch (err) {
       setError(err.message || 'Failed to load leads');
     } finally {
@@ -59,31 +44,51 @@ export default function Leads() {
   };
 
   useEffect(() => {
-    loadLeads();
-  }, []);
+    if (user?.id) {
+      loadLeads();
+    }
+  }, [user?.id, role]);
 
   const filteredLeads = useMemo(() => {
     const q = globalFilter.toLowerCase().trim();
     if (!q) return leads;
 
     return leads.filter((lead) =>
-      [lead.contactName, lead.email, lead.phone, lead.companyName, lead.status, lead.source]
+      [
+        lead.contactName,
+        lead.email,
+        lead.phone,
+        lead.companyName,
+        lead.status,
+        lead.source,
+        lead.title,
+        lead.assignedUser?.name,
+      ]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     );
   }, [leads, globalFilter]);
 
-  const handleView = (lead) => navigate(`/leads/${lead.id}`);
+  const handleView = (lead) => {
+    const targetId = lead?.id || lead?._id;
+    if (!targetId) return;
+
+    if (canManage) {
+      navigate(`/admin/leads/${targetId}`);
+    } else {
+      navigate(`/user/leads/${targetId}`);
+    }
+  };
 
   const handleStatusChange = async (lead, nextStatus) => {
-    if (!nextStatus || nextStatus === lead.status) return;
+    if (!['open', 'closed'].includes(nextStatus) || nextStatus === lead.status) return;
 
     setLeads((prev) =>
       prev.map((l) => (l.id === lead.id ? { ...l, status: nextStatus } : l))
     );
 
     try {
-      await leadsApi.update(lead.id, { status: nextStatus });
+      await leadsApi.updateStatus(lead.id, nextStatus);
     } catch (err) {
       setLeads((prev) =>
         prev.map((l) => (l.id === lead.id ? { ...l, status: lead.status } : l))
@@ -92,27 +97,22 @@ export default function Leads() {
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteLead) return;
-    setIsDeleting(true);
-    try {
-      await leadsApi.remove(deleteLead.id);
-      setLeads((prev) => prev.filter((l) => l.id !== deleteLead.id));
-      setDeleteLead(null);
-    } catch (err) {
-      setError(err.message || 'Failed to delete lead');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const columns = getLeadColumns({
-    onView: handleView,
-    onEdit: setEditLead,
-    onDelete: setDeleteLead,
-    onStatusChange: handleStatusChange,
-    canManage,
-  });
+  // Generate columns without inline edit/delete handlers
+  const columns = useMemo(
+    () =>
+      getLeadColumns({
+        userRole: role,
+        currentUser: user,
+        onView: handleView,
+        onStatusChange: handleStatusChange,
+        canManage,
+        statusOptions: [
+          { value: 'open', label: 'Open' },
+          { value: 'closed', label: 'Closed' },
+        ],
+      }),
+    [role, user, canManage]
+  );
 
   return (
     <div className="space-y-6">
@@ -120,16 +120,18 @@ export default function Leads() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
           <p className="text-sm text-muted-foreground">
-            Manage prospective leads, update statuses, and edit customer records.
+            Manage prospective leads and status progression.
           </p>
         </div>
 
         {canManage && (
           <Button
-                leftSection={<IconPlus size={16} />}
-                onClick={() => setAddOpen(true)}
-                className="!bg-black !text-white hover:!bg-neutral-800"
-                >Add Lead</Button>
+            leftSection={<IconPlus size={16} />}
+            onClick={() => setAddOpen(true)}
+            className="!bg-black !text-white hover:!bg-neutral-800"
+          >
+            Add Lead
+          </Button>
         )}
       </div>
 
@@ -173,47 +175,6 @@ export default function Leads() {
           loadLeads();
         }}
       />
-
-      {editLead ? (
-        <EditLeadDialog
-          opened={true}
-          lead={editLead}
-          onClose={() => setEditLead(null)}
-          onSuccess={() => {
-            setEditLead(null);
-            loadLeads();
-          }}
-        />
-      ) : null}
-
-      {/* Shadcn UI Delete Dialog */}
-      <AlertDialog open={!!deleteLead} onOpenChange={(open) => !open && setDeleteLead(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete lead</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete{' '}
-              <span className="font-semibold text-foreground">
-                {deleteLead?.contactName || 'this lead'}
-              </span>
-              ? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleConfirmDelete();
-              }}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

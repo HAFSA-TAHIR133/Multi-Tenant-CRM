@@ -20,8 +20,9 @@ import Leads from '../../Features/leads/pages/Leads';
 import Pipelines from '@/Features/pipelines/pages/Pipelines';
 import Users from '@/Features/users/pages/Users';
 import UserDetails from '@/Features/users/pages/UserDetails';
-import TaskDetails from "@/Features/tasks/pages/TaskDetails";
 import Tasks from '@/Features/tasks/pages/Tasks';
+import AddLeadDialog from '@/Features/leads/components/AddLeadDialog';
+import EditLeadDialog from '@/Features/leads/components/EditLeadDialog';
 
 export default function AppRoutes() {
   return (
@@ -32,7 +33,7 @@ export default function AppRoutes() {
       {/* Public */}
       <Route path="/login" element={<Login />} />
 
-      {/* SuperAdmin */}
+      {/* SuperAdmin Routes */}
       <Route element={<ProtectedRoutes allowedRoles={[ROLES.SUPER_ADMIN]} />}>
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<SuperAdminDashboard />} />
@@ -41,24 +42,28 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
-      {/* Admin */}
+      {/* Admin Routes */}
       <Route element={<ProtectedRoutes allowedRoles={[ROLES.ADMIN]} />}>
         <Route element={<AdminLayout />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/leads" element={<Leads />} />
-          <Route path="/leads/:id" element={<LeadDetails />} />
+          <Route path="/admin/leads/:id" element={<LeadDetails />} />
           <Route path="/admin/pipelines" element={<Pipelines />} />
           <Route path="/users" element={<Users />} />
           <Route path="/users/:id" element={<UserDetails />} />
           <Route path="/tasks" element={<Tasks />} />
-          <Route path="/tasks/:id" element={<TaskDetails />} />
+          <Route path='/leads/:id/edit' element={<EditLeadDialog />} />
         </Route>
       </Route>
 
-      {/* User */}
+      {/* User Routes */}
       <Route element={<ProtectedRoutes allowedRoles={[ROLES.USER]} />}>
         <Route element={<UserLayout />}>
           <Route path="/user/dashboard" element={<UserDashboard />} />
+          <Route path="/user/leads" element={<Leads />} />
+          <Route path="/user/leads/:id" element={<LeadDetails />} />
+          <Route path="/user/users" element={<Users />} />
+          <Route path="/user/tasks" element={<Tasks />} />
         </Route>
       </Route>
 

@@ -6,53 +6,24 @@ import { UserRole } from "../constants/user-roles.js";
 const publicAuthRouter = Router();
 const protectedAuthRouter = Router();
 
-/* ==========================
-   Public Routes
-========================== */
+// public routes
 
-publicAuthRouter.post(
-  "/login",
-  AuthController.login.bind(AuthController)
-);
+publicAuthRouter.post("/login",AuthController.login.bind(AuthController));
 
-publicAuthRouter.post(
-  "/refresh",
-  AuthController.refreshAccessToken.bind(AuthController)
-);
+publicAuthRouter.post("/google",AuthController.googleLogin.bind(AuthController));
 
-/**
- * Logout
- * Cookie based logout
- */
-publicAuthRouter.post(
-  "/logout",
-  AuthController.logout.bind(AuthController)
-);
+publicAuthRouter.post("/refresh",AuthController.refreshAccessToken.bind(AuthController));
 
-publicAuthRouter.post(
-  "/forgot-password",
-  AuthController.forgotPassword.bind(AuthController)
-);
+publicAuthRouter.post("/logout",AuthController.logout.bind(AuthController));
 
-publicAuthRouter.post(
-  "/reset-password",
-  AuthController.resetPassword.bind(AuthController)
-);
+publicAuthRouter.post("/forgot-password",AuthController.forgotPassword.bind(AuthController));
 
-/* ==========================
-   Protected Routes
-========================== */
+publicAuthRouter.post("/reset-password",AuthController.resetPassword.bind(AuthController));
 
-protectedAuthRouter.post(
-  "/users",
-  authMiddleware(UserRole.ADMIN),
-  AuthController.createUser.bind(AuthController)
-);
 
-protectedAuthRouter.post(
-  "/logout-all",
-  authMiddleware(UserRole.USER),
-  AuthController.logoutAll.bind(AuthController)
-);
+
+protectedAuthRouter.post("/users",authMiddleware(UserRole.ADMIN),AuthController.createUser.bind(AuthController));
+
+protectedAuthRouter.post("/logout-all",authMiddleware(UserRole.USER),AuthController.logoutAll.bind(AuthController));
 
 export { publicAuthRouter, protectedAuthRouter };

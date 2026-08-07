@@ -22,22 +22,26 @@ import {
 import { IconPlus, IconTrash, IconPalette } from '@tabler/icons-react';
 import { leadsApi } from '../api/leadsApi';
 import { pipelinesApi } from '@/Features/pipelines/api/pipelinesApi';
+import { fetchApi } from '@/api/fetchApiHelper';
 import leadSchema from '../schemas/leadSchema.js';
 import { toast } from 'sonner';
 
-// Helper functions for hex color validation and light/dark theme contrast
+// Helper functions
 const normalizeHex = (v, fallback = '#111111') => {
   if (typeof v !== 'string') return fallback;
-  const s = v.trim();
-  const withHash = s.startsWith('#') ? s : `#${s}`;
-  return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash : fallback;
+  let s = v.trim();
+  if (!s.startsWith('#')) s = `#${s}`;
+  if (/^#[0-9A-Fa-f]{3}$/.test(s)) {
+    s = `#${s[1]}${s[1]}${s[2]}${s[2]}${s[3]}${s[3]}`;
+  }
+  return /^#[0-9A-Fa-f]{6}$/.test(s) ? s : fallback;
 };
 
 function isLightColor(hex) {
   const c = normalizeHex(hex).replace('#', '');
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
+  const r = parseInt(c.substring(0, 2), 16) || 0;
+  const g = parseInt(c.substring(2, 4), 16) || 0;
+  const b = parseInt(c.substring(4, 6), 16) || 0;
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6;
 }
 
@@ -56,7 +60,6 @@ const blackBtnStyle = {
   },
 };
 
-// Reusable Stage Color Picker Component styled exactly like StageCard/DraggableStageCard
 function InteractiveColorPicker({ value, onChange, disabled }) {
   const [popoverOpened, setPopoverOpened] = useState(false);
   const [manualHex, setManualHex] = useState(normalizeHex(value));
@@ -81,15 +84,12 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
   };
 
   const current = normalizeHex(value);
-
   return (
     <Stack gap={6}>
       <Text size="xs" fw={500}>
         Stage Color
       </Text>
-
       <Group gap="xs" align="center">
-        {/* Interactive Spectrum Popover Trigger */}
         <Popover
           opened={popoverOpened}
           onChange={setPopoverOpened}
@@ -128,7 +128,6 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
               </button>
             </Tooltip>
           </Popover.Target>
-
           <Popover.Dropdown p="xs">
             <Stack gap="xs">
               <ColorPicker
@@ -153,8 +152,6 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
             </Stack>
           </Popover.Dropdown>
         </Popover>
-
-        {/* Text Hex Input */}
         <TextInput
           value={manualHex}
           onChange={handleManualInput}
@@ -172,8 +169,6 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
             },
           }}
         />
-
-        {/* Dynamic Color Preview Badge */}
         <Box
           style={{
             padding: '4px 10px',
@@ -205,20 +200,23 @@ const defaultValues = {
   source: '',
   website: '',
   value: '',
-  status: 'new',
+  status: 'open',
   pipelineId: '',
   stageId: '',
+  assignedUserId: '',
 };
 
+const createEmptyStage = () => ({
+  id: Math.random().toString(36).substring(2, 9),
+  name: '',
+  description: '',
+  color: '#111111',
+});
+
+// Status options restricted strictly to 'open' and 'closed'
 const STATUS_OPTIONS = [
-  { value: 'new', label: 'New' },
   { value: 'open', label: 'Open' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'qualified', label: 'Qualified' },
-  { value: 'proposal', label: 'Proposal' },
-  { value: 'won', label: 'Won' },
-  { value: 'lost', label: 'Lost' },
-  { value: 'completed', label: 'Completed' },
+  { value: 'closed', label: 'Closed' },
 ];
 
 export default function AddLeadDialog({ opened, onClose, onSuccess }) {
@@ -230,19 +228,17 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
   const { watch, setValue, reset } = form;
   const selectedPipelineId = watch('pipelineId');
 
-  // Pipeline & Stage state
   const [pipelines, setPipelines] = useState([]);
   const [stages, setStages] = useState([]);
+  const [users, setUsers] = useState([]);
   const [pipelinesLoading, setPipelinesLoading] = useState(false);
   const [stagesLoading, setStagesLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // New pipeline creation state with color and description fields
   const [showNewPipelineForm, setShowNewPipelineForm] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState('');
-  const [newPipelineStages, setNewPipelineStages] = useState([
-    { name: '', description: '', color: '#111111' },
-  ]);
+  const [newPipelineStages, setNewPipelineStages] = useState([createEmptyStage()]);
   const [creatingPipeline, setCreatingPipeline] = useState(false);
 
   useEffect(() => {
@@ -250,32 +246,39 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
       reset(defaultValues);
       setShowNewPipelineForm(false);
       setNewPipelineName('');
-      setNewPipelineStages([{ name: '', description: '', color: '#111111' }]);
+      setNewPipelineStages([createEmptyStage()]);
       setStages([]);
     }
   }, [opened, reset]);
 
-  // Load pipelines
-  const loadPipelines = useCallback(async () => {
+  const loadInitialData = useCallback(async () => {
     setPipelinesLoading(true);
+    setUsersLoading(true);
     try {
-      const res = await pipelinesApi.getAll();
-      const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      setPipelines(list);
+      const [pipelinesRes, usersRes] = await Promise.all([
+        pipelinesApi.getAll(),
+        fetchApi('/user'),
+      ]);
+
+      const pList = Array.isArray(pipelinesRes?.data) ? pipelinesRes.data : Array.isArray(pipelinesRes) ? pipelinesRes : [];
+      const uList = Array.isArray(usersRes?.data) ? usersRes.data : Array.isArray(usersRes) ? usersRes : [];
+
+      setPipelines(pList);
+      setUsers(uList);
     } catch (err) {
-      console.warn('Failed to load pipelines:', err);
+      console.warn('Failed to load initial metadata:', err);
     } finally {
       setPipelinesLoading(false);
+      setUsersLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (opened) {
-      loadPipelines();
+      loadInitialData();
     }
-  }, [opened, loadPipelines]);
+  }, [opened, loadInitialData]);
 
-  // Load stages when pipeline changes
   const loadStages = useCallback(
     async (pipelineId) => {
       if (!pipelineId) {
@@ -288,7 +291,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
         const res = await pipelinesApi.getStages(pipelineId);
         const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         setStages(list);
-        // Auto-select first stage if none selected
         if (list.length > 0 && !form.getValues('stageId')) {
           setValue('stageId', String(list[0].id));
         }
@@ -311,13 +313,11 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
     }
   }, [selectedPipelineId, loadStages, setValue]);
 
-  // Handle creating a new pipeline with full stage parameters
   const handleCreatePipeline = async () => {
     if (!newPipelineName.trim()) {
       toast.error('Pipeline name is required');
       return;
     }
-
     const validStages = newPipelineStages
       .map((s) => ({
         name: s.name.trim(),
@@ -330,15 +330,12 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
       toast.error('At least one stage name is required');
       return;
     }
-
     setCreatingPipeline(true);
     try {
-      // Create the pipeline
       const pipelineRes = await pipelinesApi.create({ name: newPipelineName.trim() });
       const newPipeline = pipelineRes?.data || pipelineRes;
       const pipelineId = newPipeline.id;
 
-      // Create each stage passing color, description, and order
       for (let i = 0; i < validStages.length; i++) {
         await pipelinesApi.createStage({
           name: validStages[i].name,
@@ -348,14 +345,11 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
           order: i + 1,
         });
       }
-
       toast.success(`Pipeline "${newPipelineName}" created successfully`);
       setShowNewPipelineForm(false);
       setNewPipelineName('');
-      setNewPipelineStages([{ name: '', description: '', color: '#111111' }]);
-
-      // Reload pipelines and select the new one
-      await loadPipelines();
+      setNewPipelineStages([createEmptyStage()]);
+      await loadInitialData();
       setValue('pipelineId', String(pipelineId));
     } catch (err) {
       toast.error(err?.message || 'Failed to create pipeline');
@@ -365,10 +359,7 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
   };
 
   const addStageField = () => {
-    setNewPipelineStages([
-      ...newPipelineStages,
-      { name: '', description: '', color: '#111111' },
-    ]);
+    setNewPipelineStages([...newPipelineStages, createEmptyStage()]);
   };
 
   const removeStageField = (index) => {
@@ -387,13 +378,15 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
     try {
       const payload = {
         ...values,
-        value: values.value ? Number(values.value) : undefined,
-        pipelineId: Number(values.pipelineId),
-        stageId: Number(values.stageId),
+        value: values.value !== '' && values.value !== undefined ? Number(values.value) : undefined,
+        pipelineId: values.pipelineId ? Number(values.pipelineId) : undefined,
+        stageId: values.stageId ? Number(values.stageId) : undefined,
+        assignedUserId: values.assignedUserId ? Number(values.assignedUserId) : null,
       };
       await leadsApi.create(payload);
       toast.success('Lead created successfully');
       onSuccess?.();
+      onClose?.();
     } catch (err) {
       toast.error(err?.message || 'Failed to create lead');
     } finally {
@@ -409,6 +402,12 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
   const stageOptions = stages.map((s) => ({
     value: String(s.id),
     label: s.name,
+  }));
+
+  // Displays only the user's name (or email if name is missing)
+  const userOptions = users.map((u) => ({
+    value: String(u.id || u._id),
+    label: u.name || u.email,
   }));
 
   return (
@@ -461,7 +460,7 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
             error={form.formState.errors.website?.message}
           />
           <TextInput
-            label="Estimated Value:($)"
+            label="Estimated Value ($)"
             placeholder="1000"
             {...form.register('value')}
             error={form.formState.errors.value?.message}
@@ -470,13 +469,24 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
             label="Status"
             data={STATUS_OPTIONS}
             value={form.watch('status')}
-            onChange={(val) => setValue('status', val || 'new')}
+            onChange={(val) => setValue('status', val || 'open')}
             error={form.formState.errors.status?.message}
+          />
+
+          <Select
+            label="Assignee"
+            placeholder={usersLoading ? 'Loading users...' : 'Select user to assign'}
+            data={userOptions}
+            value={form.watch('assignedUserId')}
+            onChange={(val) => setValue('assignedUserId', val || '')}
+            error={form.formState.errors.assignedUserId?.message}
+            disabled={usersLoading}
+            clearable
+            searchable
           />
 
           <Divider label="Pipeline Assignment" labelPosition="center" my="sm" />
 
-          {/* Pipeline Selection */}
           {!showNewPipelineForm ? (
             <div>
               <Group gap="xs" align="end">
@@ -492,10 +502,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
                     required
                     clearable
                     searchable
-                    styles={{
-                      input: { cursor: 'pointer' },
-                      option: { cursor: 'pointer' },
-                    }}
                   />
                 </div>
                 <Tooltip label="Create new pipeline">
@@ -513,7 +519,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
               {pipelinesLoading && <Loader size="xs" mt={4} />}
             </div>
           ) : (
-            /* New Pipeline Creation Form Styled with Cards & Interactive Color Pickers */
             <Stack gap="sm" p="sm" style={{ border: '1px solid #dee2e6', borderRadius: 8 }}>
               <Text fw={600} size="sm">
                 Create New Pipeline
@@ -525,18 +530,15 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
                 onChange={(e) => setNewPipelineName(e.currentTarget.value)}
                 required
               />
-
               <Divider my={4} />
-
               <Text size="xs" c="dimmed" fw={600} style={{ textTransform: 'uppercase' }}>
                 Pipeline Stages
               </Text>
-
               {newPipelineStages.map((stage, index) => {
                 const currentColor = stage.color || '#111111';
                 return (
                   <Paper
-                    key={index}
+                    key={stage.id}
                     p="sm"
                     style={{
                       border: '1px solid #e2e8f0',
@@ -561,7 +563,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
                             Stage {index + 1}
                           </Text>
                         </Group>
-
                         {newPipelineStages.length > 1 && (
                           <ActionIcon
                             variant="subtle"
@@ -573,7 +574,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
                           </ActionIcon>
                         )}
                       </Group>
-
                       <TextInput
                         label="Stage Name"
                         placeholder={`e.g. Stage ${index + 1}`}
@@ -582,7 +582,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
                         size="xs"
                         required
                       />
-
                       <Textarea
                         label="Description"
                         placeholder="Optional details about this stage..."
@@ -591,7 +590,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
                         size="xs"
                         rows={2}
                       />
-
                       <InteractiveColorPicker
                         value={currentColor}
                         onChange={(val) => updateStageField(index, 'color', val)}
@@ -601,7 +599,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
                   </Paper>
                 );
               })}
-
               <Button
                 variant="subtle"
                 color="gray"
@@ -611,21 +608,10 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
               >
                 Add another stage
               </Button>
-
               <Group gap="xs" mt="xs">
                 <Button
                   size="xs"
-                  styles={{
-                    root: {
-                      backgroundColor: '#111111',
-                      color: '#ffffff',
-                      transition: 'background-color 0.2s ease',
-                      '&:hover': {
-                        backgroundColor: '#ffffff',
-                        color:"#111111"
-                      },
-                    },
-                  }}
+                  styles={blackBtnStyle}
                   onClick={handleCreatePipeline}
                   loading={creatingPipeline}
                 >
@@ -638,7 +624,7 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
                   onClick={() => {
                     setShowNewPipelineForm(false);
                     setNewPipelineName('');
-                    setNewPipelineStages([{ name: '', description: '', color: '#111111' }]);
+                    setNewPipelineStages([createEmptyStage()]);
                   }}
                 >
                   Cancel
@@ -647,7 +633,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
             </Stack>
           )}
 
-          {/* Stage Selection */}
           {selectedPipelineId && !showNewPipelineForm && (
             <Select
               label="Stage"
@@ -658,20 +643,15 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
               error={form.formState.errors.stageId?.message}
               disabled={stagesLoading || stages.length === 0}
               required
-              styles={{
-                input: { cursor: 'pointer' },
-                option: { cursor: 'pointer' },
-              }}
             />
           )}
 
           <Divider my="sm" />
-
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose} type="button">
               Cancel
             </Button>
-            <Button type="submit" className="!bg-black !text-white" loading={submitting}>
+            <Button type="submit" styles={blackBtnStyle} loading={submitting}>
               Create
             </Button>
           </Group>

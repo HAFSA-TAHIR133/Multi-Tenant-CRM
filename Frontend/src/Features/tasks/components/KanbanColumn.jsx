@@ -13,8 +13,9 @@ export default function KanbanColumn({
   onOpenDetails,
 }) {
   // Makes empty columns droppable target areas
+  // Prefix with "stage-" to avoid ID collision with task sortable IDs
   const { setNodeRef, isOver } = useDroppable({
-    id: stage.id,
+    id: `stage-${stage.id}`,
   });
 
   return (

@@ -7,7 +7,9 @@ import {
   Group,
   Divider,
   Box,
+  Button,
 } from '@mantine/core';
+import { IconPencil } from '@tabler/icons-react';
 
 function Field({ label, value }) {
   return (
@@ -27,6 +29,7 @@ export default function LeadDetailSheet({
   onClose,
   lead,
   history = [],
+  onEdit,
 }) {
   if (!lead) return null;
 
@@ -70,6 +73,24 @@ export default function LeadDetailSheet({
           </Badge>
         </Group>
 
+        {/* Pipeline & Stage Info */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 16,
+          }}
+        >
+          <Field
+            label="Pipeline"
+            value={lead.pipeline?.name || lead.pipelineName || `Pipeline #${lead.pipelineId}`}
+          />
+          <Field
+            label="Stage"
+            value={lead.stage?.name || lead.stageName || `Stage #${lead.stageId}`}
+          />
+        </div>
+
         <Divider color="#f1f5f9" />
 
         {/* fields grid */}
@@ -80,7 +101,7 @@ export default function LeadDetailSheet({
             gap: 16,
           }}
         >
-          <Field label="Assigned To" value={lead.assignedUser?.name} />
+          <Field label="Assigned To" value={lead.assignedUser?.name || 'Unassigned'} />
           <Field
             label="Revenue"
             value={
@@ -92,6 +113,21 @@ export default function LeadDetailSheet({
           <Field label="Email" value={lead.email} />
           <Field label="Phone" value={lead.phone} />
         </div>
+
+        {/* Edit Button */}
+        <Group justify="center" mt="md">
+          <Button
+            leftSection={<IconPencil size={14} />}
+            variant="light"
+            color="green"
+            size="sm"
+            radius="md"
+            onClick={() => onEdit?.(lead)}
+            fullWidth
+          >
+            Edit Lead
+          </Button>
+        </Group>
 
         <Divider color="#f1f5f9" />
 

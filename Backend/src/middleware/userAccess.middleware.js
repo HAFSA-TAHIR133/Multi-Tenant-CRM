@@ -17,7 +17,7 @@ export const allowUserAccess = () => {
     }
 
     if (user.role === UserRole.USER) {
-      if (String(user.id) === String(id)) return next();
+      if (String(user.userId) === String(id)) return next();
 
       return httpResponse.FORBIDDEN(res, {}, 'Users can only access their own profile');
     }

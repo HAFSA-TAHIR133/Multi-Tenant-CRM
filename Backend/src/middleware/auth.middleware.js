@@ -2,13 +2,9 @@ import jwt from 'jsonwebtoken';
 import { httpResponse } from '../utils/httpResponse.js';
 import { ErrorCodesMeta } from '../constants/error-codes.js';
 import { Tenant } from '../models/index.js';
-import { UserRole } from '../constants/user-roles.js';
-
 
 export const authMiddleware = (requiredRole) => {
   return async (req, res, next) => {
-    console.log('user from middleware:', req.user);
-    console.log('role:', req.user?.role);
     try {
       const authHeader = req.headers.authorization;
 
@@ -23,19 +19,21 @@ export const authMiddleware = (requiredRole) => {
       const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Check tenant status
-      const tenant = await Tenant.findByPk(decoded.tenantId);
-      if (!tenant) {
-        return httpResponse.UNAUTHORIZED(res, {}, 'Tenant not found');
-      }
+      // Check tenant status (skip for users without a tenant, e.g. system-level)
+      if (decoded.tenantId) {
+        const tenant = await Tenant.findByPk(decoded.tenantId);
+        if (!tenant) {
+          return httpResponse.UNAUTHORIZED(res, {}, 'Tenant not found');
+        }
 
-      if (tenant.status === 'Inactive') {
-        return httpResponse.UNAUTHORIZED(
-          res,
-          {},
-          ErrorCodesMeta.TENANT_INACTIVE?.message ||
-            ErrorCodesMeta.FORBIDDEN.message
-        );
+        if (String(tenant.status || '').toLowerCase() === 'inactive') {
+          return httpResponse.UNAUTHORIZED(
+            res,
+            {},
+            ErrorCodesMeta.TENANT_INACTIVE?.message ||
+              ErrorCodesMeta.FORBIDDEN.message
+          );
+        }
       }
 
       // Role check
@@ -49,13 +47,10 @@ export const authMiddleware = (requiredRole) => {
       }
 
       req.user = decoded;
-      req.tenant = tenant;
-      console.log(decoded);
-      console.log(req.user);
+      req.tenant = decoded.tenantId ? await Tenant.findByPk(decoded.tenantId) : null;
 
       next();
-    } 
-	catch (error) {
+    } catch (error) {
       console.error('Auth middleware error:', error);
       return httpResponse.UNAUTHORIZED(
         res,

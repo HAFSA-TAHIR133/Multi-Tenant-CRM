@@ -43,7 +43,6 @@ const location = useLocation();
         />
       </div>
 
-      {/*  Glassmorphism Form Card Wrapper */}
       <div className="relative z-10 mx-auto w-full max-w-md p-6 sm:p-8 rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] transition-all duration-300 hover:border-purple-500/30">
         <LoginForm />
       </div>

@@ -64,6 +64,7 @@ export default function DataTable({
         }}
       >
         <Box
+          className="dark:!border-slate-700"
           style={{
             marginBottom: '12px',
             borderRadius: '16px',
@@ -74,10 +75,14 @@ export default function DataTable({
         >
           <Inbox size={32} strokeWidth={1.5} />
         </Box>
-        <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', margin: 0 }}>
+        <h4
+          className="dark:!text-slate-200"
+          style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', margin: 0 }}
+        >
           {emptyMessage}
         </h4>
         <p
+          className="dark:!text-slate-400"
           style={{
             marginTop: '4px',
             fontSize: '12px',
@@ -91,30 +96,30 @@ export default function DataTable({
     ),
     mantineTableProps: {
       ...customTableProps,
-      className: `w-full overflow-visible rounded-2xl border ${loading ? 'opacity-60' : ''}`,
+      className: `w-full overflow-visible rounded-2xl border border-slate-200 dark:border-slate-800 ${loading ? 'opacity-60' : ''}`,
       style: { borderCollapse: 'separate', borderSpacing: '0' },
     },
     mantineTableHeadCellProps: {
       ...customHeadCellProps,
       className:
-        'text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 !py-1.5 !px-2',
+        'text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 !py-1.5 !px-2 border-b border-slate-100 dark:!border-slate-800',
       style: { borderBottom: '1px solid rgb(241 245 249)' },
     },
     mantineTableContainerProps: {
-  style: {
-    overflow: 'visible',
-  },
-},
+      style: {
+        overflow: 'visible',
+      },
+    },
 
-mantinePaperProps: {
-  style: {
-    overflow: 'visible',
-  },
-},
+    mantinePaperProps: {
+      style: {
+        overflow: 'visible',
+      },
+    },
     mantineTableCellProps: {
       ...customCellProps,
       className:
-        'text-xs text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/50 !py-1 !px-2',
+        'text-xs text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/50 !py-1 !px-2 border-b border-slate-100 dark:!border-slate-800/80',
       style: { borderBottom: '1px solid rgb(241 245 249 / 0.8)' },
     },
     ...rest,

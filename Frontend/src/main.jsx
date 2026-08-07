@@ -1,20 +1,51 @@
-import { StrictMode } from 'react'
+import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './app/App.jsx'
-import { MantineProvider } from '@mantine/core';
+import { MantineProvider, ColorSchemeProvider } from '@mantine/core';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import Providers from './context/composeContext';
 import { BrowserRouter } from 'react-router-dom'
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+function Root() {
+  const [colorScheme, setColorScheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
+  const toggleColorScheme = (value) => {
+    const nextColorScheme = value || (colorScheme === 'dark' ? 'light' : 'dark');
+    setColorScheme(nextColorScheme);
+
+    const root = document.documentElement;
+    if (nextColorScheme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  };
+
+  return (
+    <ColorSchemeProvider colorScheme={colorScheme} toggleColorScheme={toggleColorScheme}>
+      <MantineProvider withGlobalStyles withNormalizeCSS>
+        <App />
+      </MantineProvider>
+    </ColorSchemeProvider>
+  );
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
-     <Providers>
-      <MantineProvider withGlobalStyles withNormalizeCSS>
-        <App />
-        </MantineProvider>
-    </Providers>
-    </BrowserRouter>
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <BrowserRouter>
+        <Providers>
+          <Root />
+        </Providers>
+      </BrowserRouter>
+    </GoogleOAuthProvider>
   </StrictMode>,
 )

@@ -1,36 +1,18 @@
-import { Op } from 'sequelize';
-import { Task, Lead, User, Tenant, Pipeline, Stage } from '../models/index.js';
+import { Task, Lead, User, Tenant, TaskDocument } from '../models/index.js';
 import { UserRole } from '../constants/user-roles.js';
 import { ErrorCodesMeta } from '../constants/error-codes.js';
-
+import { uploadToCloudinary,deleteFromCloudinary } from '../utils/fileStorage.js';
 const TaskService = {
   async createTask(data, user) {
-    const {
-      leadId,
-      title,
-      description,
-      status = 'pending',
-      priority,
-      dueDate,
-      assignedUserId,
-      pipelineId,
-      stageId,
-    } = data;
+    const { leadId, title, description, status = 'pending', priority, dueDate, assignedUserId } = data;
 
     if (!title || !leadId) {
-      const err = new Error(ErrorCodesMeta.BAD_REQUEST.message);
+      const err = new Error('Title and Lead ID are required');
       err.code = ErrorCodesMeta.BAD_REQUEST.code;
       throw err;
     }
 
-    const lead = await Lead.findByPk(leadId, {
-      include: [
-        { model: Tenant, as: 'tenant', required: true },
-        { model: Pipeline, as: 'pipeline', required: true },
-        { model: Stage, as: 'stage', required: true },
-      ],
-    });
-
+    const lead = await Lead.findByPk(leadId);
     if (!lead) {
       const err = new Error('Lead not found');
       err.code = ErrorCodesMeta.NOT_FOUND.code;
@@ -51,11 +33,9 @@ const TaskService = {
 
     const currentUserId = user.userId || user.id;
 
-    const task = await Task.create({
+    return await Task.create({
       tenantId: lead.tenantId,
       leadId,
-      pipelineId: pipelineId ?? lead.pipelineId,
-      stageId: stageId ?? lead.stageId,
       title,
       description,
       status,
@@ -65,81 +45,64 @@ const TaskService = {
       createdBy: currentUserId,
       lastUpdatedBy: currentUserId,
     });
-
-    return task;
   },
 
-  async getAllTasks(user) {
-    const include = [
-      {
-        model: Lead,
-        as: 'lead',
-        required: true,
-        include: [
-          { model: User, as: 'assignedUser', required: false },
-          { model: Pipeline, as: 'pipeline', required: true },
-          { model: Stage, as: 'stage', required: true },
-        ],
-      },
-      { model: User, as: 'assignedUser', required: false },
-    ];
+  async getAllTasks(user, query = {}) {
+    const { userId, leadId } = query;
+    const where = {};
 
-    if (user.role === UserRole.SUPERADMIN) {
-      return await Task.findAll({ include, order: [['createdAt', 'DESC']] });
+    // Tenant isolation
+    if (user.role !== UserRole.SUPERADMIN && user.tenantId) {
+      where.tenantId = user.tenantId;
     }
 
-    if (user.role === UserRole.ADMIN) {
-      return await Task.findAll({
-        where: { tenantId: user.tenantId },
-        include,
-        order: [['createdAt', 'DESC']],
-      });
-    }
-
+    // Role-based visibility scoping
     if (user.role === UserRole.USER) {
       const currentUserId = user.userId || user.id;
-      return await Task.findAll({
-        where: { tenantId: user.tenantId },
-        include: [
-          {
-            model: Lead,
-            as: 'lead',
-            required: true,
-            where: { assignedUserId: currentUserId },
-            include: [
-              { model: User, as: 'assignedUser', required: false },
-              { model: Pipeline, as: 'pipeline', required: true },
-              { model: Stage, as: 'stage', required: true },
-            ],
-          },
-          { model: User, as: 'assignedUser', required: false },
-        ],
-        order: [['createdAt', 'DESC']],
-      });
+      where.assignedUserId = Number(currentUserId);
+    } else if (userId) {
+      where.assignedUserId = Number(userId);
     }
 
-    const err = new Error(ErrorCodesMeta.FORBIDDEN.message);
-    err.code = ErrorCodesMeta.FORBIDDEN.code;
-    throw err;
-  },
+    if (leadId) {
+      where.leadId = Number(leadId);
+    }
 
-  async getTaskById(id, user) {
-    const numericId = Number(id);
-    const task = await Task.findByPk(numericId, {
+    return await Task.findAll({
+      where,
       include: [
         {
           model: Lead,
           as: 'lead',
-          required: true,
-          include: [
-            { model: User, as: 'assignedUser', required: false },
-            { model: Pipeline, as: 'pipeline', required: true },
-            { model: Stage, as: 'stage', required: true },
-            { model: Tenant, as: 'tenant', required: true },
-          ],
+          required: false,
+          attributes: ['id', 'title', 'companyName', 'contactName', 'email', 'assignedUserId'],
         },
-        { model: User, as: 'assignedUser', required: false },
-        { model: Tenant, as: 'tenant', required: true },
+        {
+          model: User,
+          as: 'assignedUser',
+          required: false,
+          attributes: ['id', 'name', 'email', 'role'],
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+  },
+
+  async getTaskById(id, user) {
+    const task = await Task.findByPk(id, {
+      include: [
+        {
+          model: Lead,
+          as: 'lead',
+          required: false,
+          attributes: ['id', 'title', 'companyName', 'contactName', 'email', 'assignedUserId'],
+        },
+        {
+          model: User,
+          as: 'assignedUser',
+          required: false,
+          attributes: ['id', 'name', 'email', 'role'],
+        },
       ],
     });
 
@@ -149,166 +112,45 @@ const TaskService = {
       throw err;
     }
 
-    if (user.role === UserRole.SUPERADMIN) {
-      return task;
-    }
-
-    if (user.role === UserRole.ADMIN) {
-      if (String(task.tenantId) !== String(user.tenantId)) {
-        const err = new Error('Admins can only access tasks in their own tenant');
-        err.code = ErrorCodesMeta.FORBIDDEN.code;
-        throw err;
-      }
-      return task;
-    }
-
-    if (user.role === UserRole.USER) {
-      const currentUserId = user.userId || user.id;
-      if (
-        String(task.tenantId) !== String(user.tenantId) ||
-        String(task.lead?.assignedUserId || '') !== String(currentUserId)
-      ) {
-        const err = new Error('Access denied: task is not assigned to you');
-        err.code = ErrorCodesMeta.FORBIDDEN.code;
-        throw err;
-      }
-      return task;
-    }
-
-    const err = new Error(ErrorCodesMeta.FORBIDDEN.message);
-    err.code = ErrorCodesMeta.FORBIDDEN.code;
-    throw err;
+    this._checkAccessPermission(task, user);
+    return task;
   },
 
-  // TaskService.js
-
-async updateTask(id, data, user) {
-  const currentUserId = user.userId || user.id;
-
-  // 1. Validate task existence and tenant permission
-  const existingTask = await Task.findByPk(id);
-  if (!existingTask) {
-    const err = new Error('Task not found');
-    err.code = 404;
-    throw err;
-  }
-
-  const {
-    title,
-    description,
-    status,
-    priority,
-    dueDate,
-    assignedUserId,
-    leadId,
-    pipelineId,
-    stageId,
-  } = data;
-
-  const taskUpdates = { lastUpdatedBy: currentUserId };
-
-  if (title !== undefined) taskUpdates.title = title;
-  if (description !== undefined) taskUpdates.description = description;
-  if (status !== undefined) taskUpdates.status = status;
-  if (priority !== undefined) taskUpdates.priority = priority;
-  if (dueDate !== undefined) taskUpdates.dueDate = dueDate;
-  if (assignedUserId !== undefined) taskUpdates.assignedUserId = assignedUserId;
-  if (pipelineId !== undefined) taskUpdates.pipelineId = Number(pipelineId);
-
-  // Parse stageId explicitly
-  let parsedStageId = undefined;
-  if (stageId !== undefined) {
-    parsedStageId = Number(stageId);
-    taskUpdates.stageId = parsedStageId;
-  }
-
-  // Execute database updates inside a Managed Transaction
-  await Task.sequelize.transaction(async (t) => {
-    // A. Direct DB Update on Task
-    await Task.update(taskUpdates, {
-      where: { id },
-      transaction: t,
+  async updateTask(id, data, user) {
+    const currentUserId = user.userId || user.id;
+    const existingTask = await Task.findByPk(id, {
+      include: [{ model: Lead, as: 'lead', attributes: ['id', 'assignedUserId'] }],
     });
 
-    // B. Direct DB Update on Associated Lead (if stageId changed)
-    if (parsedStageId !== undefined && existingTask.leadId) {
-      await Lead.update(
-        {
-          stageId: parsedStageId,
-          lastUpdatedBy: currentUserId,
-        },
-        {
-          where: { id: existingTask.leadId },
-          transaction: t,
-        }
-      );
+    if (!existingTask) {
+      const err = new Error('Task not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
     }
-  });
 
-  // 2. Fetch fresh Task instance with re-loaded nested Lead association
-  const freshTask = await Task.findByPk(id, {
-    include: [
-      {
-        model: Lead,
-        as: 'lead',
-        required: false,
-        include: [
-          { model: User, as: 'assignedUser', required: false },
-          { model: Pipeline, as: 'pipeline', required: false },
-          { model: Stage, as: 'stage', required: false },
-        ],
-      },
-      { model: User, as: 'assignedUser', required: false },
-    ],
-  });
+    this._checkAccessPermission(existingTask, user);
 
-  return freshTask;
-},
+    const { title, description, status, priority, dueDate, assignedUserId } = data;
 
-async moveTaskStage(id, stageId, user) {
-  const currentUserId = user?.userId || user?.id;
-  const parsedStageId = Number(stageId);
-
-  const existingTask = await Task.findByPk(id);
-  if (!existingTask) {
-    const err = new Error('Task not found');
-    err.code = 404;
-    throw err;
-  }
-
-  // Execute Transaction to enforce both updates simultaneously
-  await Task.sequelize.transaction(async (t) => {
-    // 1. Force update Task table
-    await Task.update(
-      { stageId: parsedStageId, lastUpdatedBy: currentUserId },
-      { where: { id }, transaction: t }
-    );
-
-    // 2. Force update Lead table
-    if (existingTask.leadId) {
-      await Lead.update(
-        { stageId: parsedStageId, lastUpdatedBy: currentUserId },
-        { where: { id: existingTask.leadId }, transaction: t }
-      );
+    // Normal users cannot reassign tasks to others
+    if (user.role === UserRole.USER && assignedUserId !== undefined && Number(assignedUserId) !== Number(currentUserId)) {
+      const err = new Error('Users cannot reassign tasks');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
     }
-  });
 
-  // 3. Return completely fresh populated record
-  return await Task.findByPk(id, {
-    include: [
-      {
-        model: Lead,
-        as: 'lead',
-        required: false,
-        include: [
-          { model: Pipeline, as: 'pipeline', required: false },
-          { model: Stage, as: 'stage', required: false },
-        ],
-      },
-      { model: User, as: 'assignedUser', required: false },
-    ],
-  });
-},
+    const taskUpdates = { lastUpdatedBy: currentUserId };
+    if (title !== undefined) taskUpdates.title = title;
+    if (description !== undefined) taskUpdates.description = description;
+    if (status !== undefined) taskUpdates.status = status;
+    if (priority !== undefined) taskUpdates.priority = priority;
+    if (dueDate !== undefined) taskUpdates.dueDate = dueDate;
+    if (assignedUserId !== undefined) taskUpdates.assignedUserId = assignedUserId;
+
+    await existingTask.update(taskUpdates);
+
+    return await this.getTaskById(id, user);
+  },
 
   async deleteTask(id, user) {
     const task = await Task.findByPk(id);
@@ -334,98 +176,126 @@ async moveTaskStage(id, stageId, user) {
     return { success: true };
   },
 
-  async getTasksForUser(userId, actor) {
-    const targetUser = await User.findByPk(userId, {
-      include: [{ model: Tenant, as: 'tenant', required: false }],
+  async uploadTaskDocument(taskId, file, user) {
+    const task = await Task.findByPk(taskId, {
+      include: [{ model: Lead, as: 'lead', attributes: ['id', 'assignedUserId'] }],
     });
 
-    if (!targetUser) {
-      const err = new Error('User not found');
+    if (!task) {
+      const err = new Error('Task not found');
       err.code = ErrorCodesMeta.NOT_FOUND.code;
       throw err;
     }
 
-    const actorId = actor.userId || actor.id;
+    this._checkAccessPermission(task, user);
 
-    if (actor.role === UserRole.USER) {
-      if (String(targetUser.id) !== String(actorId)) {
-        const err = new Error('You can only view your own tasks');
-        err.code = ErrorCodesMeta.FORBIDDEN.code;
-        throw err;
-      }
-    } else if (actor.role === UserRole.ADMIN) {
-      if (String(targetUser.tenantId) !== String(actor.tenantId)) {
-        const err = new Error('Admins can only view tasks for users in their tenant');
-        err.code = ErrorCodesMeta.FORBIDDEN.code;
-        throw err;
-      }
-    }
+    const currentUserId = user.userId || user.id;
+    const cloudUrl = await uploadToCloudinary(
+      file.path,
+      `tenants/${task.tenantId}/tasks/${taskId}`
+    );
 
-    const taskInclude = [
-      {
-        model: Lead,
-        as: 'lead',
-        required: false,
-        include: [
-          { model: User, as: 'assignedUser', required: false },
-          { model: Pipeline, as: 'pipeline', required: true },
-          { model: Stage, as: 'stage', required: true },
-        ],
-      },
-      { model: User, as: 'assignedUser', required: false },
-    ];
-
-    const where = { assignedUserId: targetUser.id };
-    if (actor.role !== UserRole.SUPERADMIN) {
-      where.tenantId = targetUser.tenantId;
-    }
-
-    const tasks = await Task.findAll({
-      where,
-      include: taskInclude,
-      order: [['createdAt', 'DESC']],
+    return await TaskDocument.create({
+      taskId,
+      tenantId: task.tenantId,
+      name: file.originalname,
+      url: cloudUrl,
+      createdBy: currentUserId,
     });
-
-    return tasks;
   },
 
-  // task.service.js
-async moveTaskStage(taskId, stageId, user) {
-  const task = await Task.findByPk(taskId);
-  if (!task) throw new Error('Task not found');
+  async getTaskDocuments(taskId, user) {
+    const task = await Task.findByPk(taskId, {
+      include: [{ model: Lead, as: 'lead', attributes: ['id', 'assignedUserId'] }],
+    });
 
-  const parsedStageId = Number(stageId);
-  const currentUserId = user?.userId || user?.id;
+    if (!task) {
+      const err = new Error('Task not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
 
-  // 1. Update the Task's stageId directly in DB
-  await Task.update(
-    { stageId: parsedStageId, lastUpdatedBy: currentUserId },
-    { where: { id: taskId } }
-  );
+    this._checkAccessPermission(task, user);
 
-  // 2. Update the associated Lead's stageId directly in DB
-  if (task.leadId) {
-    await Lead.update(
-      { stageId: parsedStageId, lastUpdatedBy: currentUserId },
-      { where: { id: task.leadId } }
-    );
-  }
+    return await TaskDocument.findAll({
+      where: { taskId },
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name', 'email'],
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+  },
 
-  // 3. Fetch and return the fully populated task object
-  return await Task.findByPk(taskId, {
-    include: [
-      {
-        model: Lead,
-        as: 'lead',
-        include: [
-          { model: Pipeline, as: 'pipeline' },
-          { model: Stage, as: 'stage' },
-        ],
-      },
-      { model: User, as: 'assignedUser' },
-    ],
-  });
-}
+    async deleteDocumentForTask(taskId, documentId, user) {
+    const task = await Task.findByPk(taskId);
+
+    if (!task) {
+      const err = new Error('Task not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
+
+    // RBAC Validation
+    if (user.role === UserRole.ADMIN) {
+      if (String(task.tenantId) !== String(user.tenantId)) {
+        const err = new Error('Admins can only delete documents in their own tenant');
+        err.code = ErrorCodesMeta.FORBIDDEN.code;
+        throw err;
+      }
+    } else if (user.role === UserRole.USER) {
+      const err = new Error('Regular users are not allowed to delete task documents');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    } else if (user.role !== UserRole.SUPERADMIN) {
+      const err = new Error(ErrorCodesMeta.FORBIDDEN.message);
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    }
+
+    const document = await TaskDocument.findOne({
+      where: { id: documentId, taskId, tenantId: task.tenantId },
+    });
+
+    if (!document) {
+      const err = new Error('Document not found');
+      err.code = ErrorCodesMeta.NOT_FOUND.code;
+      throw err;
+    }
+
+    // Delete from Cloudinary (helper handles raw/image/auto)
+    await deleteFromCloudinary(document.url);
+
+    // Remove from Database
+    await document.destroy();
+    return { message: 'Task document deleted successfully' };
+  },
+
+  // ✅ Restore this helper — it was missing
+  _checkAccessPermission(task, user) {
+    if (user.role === UserRole.SUPERADMIN) return;
+
+    if (String(task.tenantId) !== String(user.tenantId)) {
+      const err = new Error('Access denied: tenant mismatch');
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    }
+
+    if (user.role === UserRole.USER) {
+      const currentUserId = user.userId || user.id;
+      const isAssignedUser = String(task.assignedUserId || '') === String(currentUserId);
+      const isLeadOwner = String(task.lead?.assignedUserId || '') === String(currentUserId);
+
+      if (!isAssignedUser && !isLeadOwner) {
+        const err = new Error('Access denied: task is not assigned to you');
+        err.code = ErrorCodesMeta.FORBIDDEN.code;
+        throw err;
+      }
+    }
+  },
 };
 
 export default TaskService;

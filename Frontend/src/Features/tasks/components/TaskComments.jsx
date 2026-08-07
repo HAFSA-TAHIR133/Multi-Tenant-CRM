@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { chatApi } from "../../chat/api/chatApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

@@ -1,5 +1,3 @@
-// src/Features/tasks/components/AddTaskDialog.jsx
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,7 +9,6 @@ export default function AddTaskDialog({
   open,
   onOpenChange,
   onSubmit,
-  stages = [],
   users = [],
   leads = [],
   loading,
@@ -25,29 +22,75 @@ export default function AddTaskDialog({
     dueDate: "",
     assignedUserId: "",
     leadId: "",
-    stageId: "",
   });
 
   const [validationError, setValidationError] = useState("");
 
-  // Reset form when dialog opens/closes or options change
+  const getLeadOwnerId = (targetLeadId, availableLeads) => {
+    if (!targetLeadId) return "";
+
+    const selectedLead = availableLeads.find(
+      (l) => String(l.id ?? l._id) === String(targetLeadId)
+    );
+
+    if (!selectedLead) return "";
+
+    const rawOwnerId =
+      selectedLead.assignedUserId ??
+      selectedLead.assignedTo ??
+      selectedLead.userId ??
+      selectedLead.ownerId ??
+      selectedLead.assignedUser?.id ??
+      selectedLead.assignedUser?._id ??
+      "";
+
+    return rawOwnerId ? String(rawOwnerId) : "";
+  };
+
+  const getUserDisplayName = (u) => {
+    if (!u) return "";
+    if (u.name) return u.name;
+    if (u.fullName) return u.fullName;
+    if (u.firstName || u.lastName) {
+      return `${u.firstName || ""} ${u.lastName || ""}`.trim();
+    }
+    return u.email || `User #${u.id || u._id}`;
+  };
+
+  const getLeadDisplayName = (l) => {
+    if (!l) return "";
+    return l.title || l.contactName || l.companyName || l.name || `Lead #${l.id || l._id}`;
+  };
+
   useEffect(() => {
     if (open) {
       setValidationError("");
-      const initialLeadId = pipelineLead?.id ? String(pipelineLead.id) : (leads[0]?.id ? String(leads[0].id) : "");
-      const initialStageId = stages[0]?.id ? String(stages[0].id) : "";
+
+      const activeLead = pipelineLead || (leads && leads.length > 0 ? leads[0] : null);
+      const initialLeadId = activeLead ? String(activeLead.id ?? activeLead._id ?? "") : "";
+      const initialAssignedUser = getLeadOwnerId(initialLeadId, leads);
 
       setForm({
         title: "",
         description: "",
         priority: "normal",
         dueDate: "",
-        assignedUserId: "",
+        assignedUserId: initialAssignedUser,
         leadId: initialLeadId,
-        stageId: initialStageId,
       });
     }
-  }, [open, stages, leads, pipelineLead]);
+  }, [open, pipelineLead, leads]);
+
+  const handleLeadChange = (e) => {
+    const selectedId = e.target.value;
+    const associatedUserId = getLeadOwnerId(selectedId, leads);
+
+    setForm((prevForm) => ({
+      ...prevForm,
+      leadId: selectedId,
+      assignedUserId: associatedUserId,
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,7 +113,6 @@ export default function AddTaskDialog({
       dueDate: form.dueDate || undefined,
       leadId: parsedLeadId,
       pipelineId: defaultPipelineId ? Number(defaultPipelineId) : undefined,
-      stageId: form.stageId ? Number(form.stageId) : undefined,
       assignedUserId: form.assignedUserId ? Number(form.assignedUserId) : null,
     };
 
@@ -93,9 +135,10 @@ export default function AddTaskDialog({
           )}
 
           <div className="flex-1 overflow-y-auto space-y-4 px-1 pr-3">
-            {/* Title */}
             <div className="space-y-2">
-              <Label>Title <span className="text-destructive">*</span></Label>
+              <Label>
+                Title <span className="text-destructive">*</span>
+              </Label>
               <Input
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -104,7 +147,6 @@ export default function AddTaskDialog({
               />
             </div>
 
-            {/* Description */}
             <div className="space-y-2">
               <Label>Description</Label>
               <NoteEditor
@@ -114,32 +156,56 @@ export default function AddTaskDialog({
               />
             </div>
 
-            {/* Lead & Stage Selection */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>
+                  Associated Lead <span className="text-destructive">*</span>
+                </Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                  value={form.leadId}
+                  onChange={handleLeadChange}
+                  required
+                >
+                  <option value="" disabled>
+                    Select a lead
+                  </option>
+                  {leads.map((l) => {
+                    const lId = String(l.id ?? l._id);
+                    return (
+                      <option key={lId} value={lId}>
+                        {getLeadDisplayName(l)}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
 
               <div className="space-y-2">
-                <Label>Stage</Label>
+                <Label>Lead Assigned Owner</Label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  value={form.stageId}
-                  onChange={(e) => setForm((f) => ({ ...f, stageId: e.target.value }))}
+                  disabled
+                  className="flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed disabled:opacity-80"
+                  value={form.assignedUserId}
                 >
-                  <option value="">Default (First Stage)</option>
-                  {stages.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
+                  <option value="">No owner assigned to lead</option>
+                  {users.map((u) => {
+                    const uId = String(u.id ?? u._id);
+                    return (
+                      <option key={uId} value={uId}>
+                        {getUserDisplayName(u)}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
 
-            {/* Priority & Due Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Priority</Label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                   value={form.priority}
                   onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
                 >
@@ -158,28 +224,8 @@ export default function AddTaskDialog({
                 />
               </div>
             </div>
-
-            {/* Assigned User */}
-            <div className="space-y-2">
-              <Label>Assigned User</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={form.assignedUserId}
-                onChange={(e) =>{
-                  console.log("Selected user ID:", e.target.value);
-                  setForm((f) => ({ ...f, assignedUserId: e.target.value }))}}
-              >
-                <option value="">Unassigned</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name || u.email}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-3 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

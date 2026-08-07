@@ -22,20 +22,6 @@ export async function up(queryInterface) {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
-    pipelineId: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: { model: 'Pipelines', key: 'id' },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
-    },
-    stageId: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: { model: 'Stages', key: 'id' },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
-    },
     title: {
       type: DataTypes.STRING,
       allowNull: false,

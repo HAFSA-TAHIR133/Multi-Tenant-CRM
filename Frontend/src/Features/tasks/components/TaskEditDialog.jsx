@@ -10,10 +10,10 @@ export default function TaskEditDialog({
   onOpenChange,
   task,
   onSubmit,
-  stages = [],
   users = [],
   leads = [],
   loading,
+  defaultPipelineId,
 }) {
   const [form, setForm] = useState({
     title: "",
@@ -22,30 +22,108 @@ export default function TaskEditDialog({
     dueDate: "",
     assignedUserId: "",
     leadId: "",
-    stageId: "",
   });
 
+  const [validationError, setValidationError] = useState("");
+
+  // Helper to extract Lead Owner ID across any schema format
+  const getLeadOwnerId = (targetLeadId, availableLeads) => {
+    if (!targetLeadId) return "";
+
+    const selectedLead = availableLeads.find(
+      (l) => String(l.id ?? l._id) === String(targetLeadId)
+    );
+
+    if (!selectedLead) return "";
+
+    const rawOwnerId =
+      selectedLead.assignedUserId ??
+      selectedLead.assignedTo ??
+      selectedLead.userId ??
+      selectedLead.ownerId ??
+      selectedLead.assignedUser?.id ??
+      selectedLead.assignedUser?._id ??
+      "";
+
+    return rawOwnerId ? String(rawOwnerId) : "";
+  };
+
+  // Helper to construct display name for users
+  const getUserDisplayName = (u) => {
+    if (!u) return "";
+    if (u.name) return u.name;
+    if (u.fullName) return u.fullName;
+    if (u.firstName || u.lastName) {
+      return `${u.firstName || ""} ${u.lastName || ""}`.trim();
+    }
+    return u.email || `User #${u.id || u._id}`;
+  };
+
+  // Helper to get display label for leads
+  const getLeadDisplayName = (l) => {
+    if (!l) return "";
+    return l.title || l.contactName || l.companyName || l.name || `Lead #${l.id || l._id}`;
+  };
+
+  // Populate form state when `task` prop updates or dialog opens
   useEffect(() => {
-    if (!task) return;
-    setForm({
-      title: task.title || "",
-      description: task.description || "",
-      priority: task.priority || "normal",
-      dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
-      assignedUserId: task.assignedUserId ?? "",
-      leadId: task.leadId ?? "",
-      stageId: task.stageId ?? stages[0]?.id ?? "",
-    });
-  }, [task, stages]);
+    if (open && task) {
+      setValidationError("");
+
+      const currentLeadId = task.leadId ? String(task.leadId) : "";
+      // Prefer existing assignedUserId on task, fall back to owner of selected lead
+      const currentAssignedUser = task.assignedUserId
+        ? String(task.assignedUserId)
+        : getLeadOwnerId(currentLeadId, leads);
+
+      setForm({
+        title: task.title || "",
+        description: task.description || "",
+        priority: task.priority || "normal",
+        dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
+        assignedUserId: currentAssignedUser,
+        leadId: currentLeadId,
+      });
+    }
+  }, [open, task, leads]);
+
+  // Handle dropdown changes for lead selection
+  const handleLeadChange = (e) => {
+    const selectedId = e.target.value;
+    const associatedUserId = getLeadOwnerId(selectedId, leads);
+
+    setForm((prevForm) => ({
+      ...prevForm,
+      leadId: selectedId,
+      assignedUserId: associatedUserId,
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await onSubmit(task.id, {
-      ...form,
-      leadId: form.leadId ? Number(form.leadId) : undefined,
+    setValidationError("");
+
+    const parsedLeadId = Number(form.leadId);
+    if (!form.title.trim()) {
+      setValidationError("Please enter a task title.");
+      return;
+    }
+    if (!parsedLeadId || isNaN(parsedLeadId)) {
+      setValidationError("Please select a valid associated lead.");
+      return;
+    }
+
+    const payload = {
+      title: form.title.trim(),
+      description: form.description,
+      priority: form.priority,
+      dueDate: form.dueDate || undefined,
+      leadId: parsedLeadId,
+      pipelineId: defaultPipelineId ? Number(defaultPipelineId) : undefined,
       assignedUserId: form.assignedUserId ? Number(form.assignedUserId) : null,
-      stageId: form.stageId ? Number(form.stageId) : undefined,
-    });
+    };
+
+    await onSubmit(task.id, payload);
     onOpenChange(false);
   };
 
@@ -53,23 +131,33 @@ export default function TaskEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[85vh] flex flex-col overflow-hidden p-6">
-        <DialogHeader className="pb-2">
+      <DialogContent className="w-[90vw] sm:max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
           <DialogTitle>Edit Task</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          {/* Scrollable Form Body */}
-          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden space-y-4">
+          {validationError && (
+            <div className="p-2.5 text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+              {validationError}
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto space-y-4 px-1 pr-3">
+            {/* Title */}
             <div className="space-y-2">
-              <Label>Title</Label>
+              <Label>
+                Title <span className="text-destructive">*</span>
+              </Label>
               <Input
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="Enter task title"
                 required
               />
             </div>
 
+            {/* Description */}
             <div className="space-y-2">
               <Label>Description</Label>
               <NoteEditor
@@ -79,11 +167,59 @@ export default function TaskEditDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Associated Lead & Lead Assigned Owner */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Lead Selection */}
+              <div className="space-y-2">
+                <Label>
+                  Associated Lead <span className="text-destructive">*</span>
+                </Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                  value={form.leadId}
+                  onChange={handleLeadChange}
+                  required
+                >
+                  <option value="" disabled>Select a lead</option>
+                  {leads.map((l) => {
+                    const lId = String(l.id ?? l._id);
+                    return (
+                      <option key={lId} value={lId}>
+                        {getLeadDisplayName(l)}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Lead Assigned Owner */}
+              <div className="space-y-2">
+                <Label>Lead Assigned Owner</Label>
+                <select
+                  disabled
+                  className="flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed disabled:opacity-80"
+                  value={form.assignedUserId}
+                >
+                  <option value="">No owner assigned to lead</option>
+                  {users.map((u) => {
+                    const uId = String(u.id ?? u._id);
+                    return (
+                      <option key={uId} value={uId}>
+                        {getUserDisplayName(u)}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+
+            {/* Priority & Due Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Priority */}
               <div className="space-y-2">
                 <Label>Priority</Label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                   value={form.priority}
                   onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
                 >
@@ -93,6 +229,7 @@ export default function TaskEditDialog({
                 </select>
               </div>
 
+              {/* Due Date */}
               <div className="space-y-2">
                 <Label>Due Date</Label>
                 <Input
@@ -102,59 +239,10 @@ export default function TaskEditDialog({
                 />
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Assigned User</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={form.assignedUserId}
-                  onChange={(e) => setForm((f) => ({ ...f, assignedUserId: e.target.value }))}
-                >
-                  <option value="">Unassigned</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Lead</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={form.leadId}
-                  onChange={(e) => setForm((f) => ({ ...f, leadId: e.target.value }))}
-                >
-                  <option value="">Select Lead</option>
-                  {leads.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name || l.title || `Lead #${l.id}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Stage</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={form.stageId}
-                onChange={(e) => setForm((f) => ({ ...f, stageId: e.target.value }))}
-              >
-                {stages.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
-          {/* Sticky Footer */}
-          <div className="flex justify-end gap-2 pt-4 mt-2 border-t">
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2 pt-3 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

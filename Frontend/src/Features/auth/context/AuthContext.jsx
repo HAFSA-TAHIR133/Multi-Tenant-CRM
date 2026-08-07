@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { authApi } from "../api/authApi";
 import { useTenant } from "@/context/TenantContext.jsx";
+import { AUTH_UPDATED_EVENT } from "@/api/fetchApiHelper.jsx";
 
 export const AuthContext = createContext(null);
 
@@ -37,37 +38,69 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, accessToken, activeTenant]);
 
+  useEffect(() => {
+    const handleAuthUpdated = () => {
+      const current = safeParse(localStorage.getItem("auth"));
+
+      if (!current?.accessToken) {
+        setUser(null);
+        setAccessToken(null);
+        clearTenant();
+        return;
+      }
+
+      setAccessToken(current.accessToken);
+      if (current.user) {
+        setUser(current.user);
+      }
+    };
+
+    window.addEventListener(AUTH_UPDATED_EVENT, handleAuthUpdated);
+    return () => window.removeEventListener(AUTH_UPDATED_EVENT, handleAuthUpdated);
+  }, [clearTenant]);
+
+  const establishSession = (data) => {
+    const nextUser = data.user || null;
+    const nextAccessToken = data.accessToken || data.token || null;
+
+    const nextTenant =
+      data.activeTenant ||
+      data.tenant ||
+      nextUser?.tenant ||
+      nextUser?.tenantId ||
+      null;
+
+    setUser(nextUser);
+    setAccessToken(nextAccessToken);
+
+    if (nextTenant) {
+      setActiveTenant(nextTenant);
+    }
+
+    return data;
+  };
+
   const login = async (credentials) => {
     setIsLoading(true);
     try {
       const response = await authApi.login(credentials);
-      const data = response.data;
-
-      const nextUser = data.user || null;
-      const nextAccessToken = data.accessToken || data.token || null;
-
-      // Normalize tenant structure whether backend sends object or string ID
-      const nextTenant =
-        data.activeTenant ||
-        data.tenant ||
-        nextUser?.tenant ||
-        nextUser?.tenantId ||
-        null;
-
-      setUser(nextUser);
-      setAccessToken(nextAccessToken);
-
-      if (nextTenant) {
-        setActiveTenant(nextTenant);
-      }
-
-      return data;
+      return establishSession(response.data);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = async () => {
+  const googleLogin = async (credential) => {
+    setIsLoading(true);
+    try {
+      const response = await authApi.googleLogin(credential);
+      return establishSession(response.data);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = useCallback(async () => {
     try {
       await authApi.logout();
     } catch (err) {
@@ -78,9 +111,9 @@ export const AuthProvider = ({ children }) => {
       clearTenant();
       localStorage.removeItem("auth");
     }
-  };
+  }, [clearTenant]);
 
-  const refreshSession = async () => {
+  const refreshSession = useCallback(async () => {
     const data = await authApi.refresh();
     const nextAccessToken = data.accessToken || data.token;
     setAccessToken(nextAccessToken);
@@ -92,7 +125,7 @@ export const AuthProvider = ({ children }) => {
     );
 
     return data;
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -102,10 +135,11 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated: Boolean(user && accessToken),
       isLoading,
       login,
+      googleLogin,
       logout,
       refreshSession,
     }),
-    [user, accessToken, activeTenant, isLoading]
+    [user, accessToken, activeTenant, isLoading, login, googleLogin, logout, refreshSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

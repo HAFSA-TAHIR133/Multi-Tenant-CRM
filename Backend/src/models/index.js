@@ -11,12 +11,11 @@ import PipelineAssignment from './pipeline-assignment.modal.js';
 import RefreshToken from './refresh-token-modal.js';
 import Task from './task.modal.js';
 
-import TaskNoteModel from "./taskNote.model.js";
-import TaskDocumentModel from "./taskDocument.model.js";
+import TaskDocumentModel from './taskDocument.model.js';
 import taskCommentModel from './taskComment.model.js';
+import LeadDocumentModel from './leadDocument.model.js';
 
-
-// Create sequelize instance from env 
+// Create sequelize instance from env
 const env = process.env.NODE_ENV || 'development';
 const dbConfig = config[env];
 
@@ -42,9 +41,9 @@ const LeadHistoryModel = LeadHistory(sequelize);
 const PipelineAssignmentModel = PipelineAssignment(sequelize);
 const RefreshTokenModel = RefreshToken(sequelize);
 const TaskModal = Task(sequelize);
-const TaskNote = TaskNoteModel(sequelize);
 const TaskDocument = TaskDocumentModel(sequelize);
 const TaskComment = taskCommentModel(sequelize);
+const LeadDocument = LeadDocumentModel(sequelize);
 
 // Associations
 
@@ -98,7 +97,7 @@ StageModel.belongsTo(PipelineModel, {
   as: 'pipeline',
 });
 
-// Tenant ↔ Stages 
+// Tenant ↔ Stages
 TenantModel.hasMany(StageModel, {
   foreignKey: 'tenantId',
   as: 'stagesDirect',
@@ -127,7 +126,6 @@ LeadModel.belongsTo(StageModel, {
   foreignKey: 'stageId',
   as: 'stage',
 });
-
 
 // Pipeline ↔ Leads
 PipelineModel.hasMany(LeadModel, {
@@ -169,16 +167,6 @@ LeadHistoryModel.belongsTo(UserModel, {
   as: 'changedByUser',
 });
 
-// Pipeline ↔ User (createdBy)
-UserModel.hasMany(PipelineModel, {
-  foreignKey: 'createdBy',
-  as: 'createdPipelines',
-});
-PipelineModel.belongsTo(UserModel, {
-  foreignKey: 'createdBy',
-  as: 'creator',
-});
-
 // Lead ↔ User (createdBy, lastUpdatedBy)
 UserModel.hasMany(LeadModel, {
   foreignKey: 'createdBy',
@@ -198,22 +186,6 @@ LeadModel.belongsTo(UserModel, {
   as: 'updater',
 });
 
-// User ↔ pipline
-
-PipelineModel.belongsToMany(UserModel, {
-  through: PipelineAssignmentModel,
-  foreignKey: 'pipelineId',
-  otherKey: 'userId',
-  as: 'assignedUsers',
-});
-
-UserModel.belongsToMany(PipelineModel, {
-  through: PipelineAssignmentModel,
-  foreignKey: 'userId',
-  otherKey: 'pipelineId',
-  as: 'assignedPipelines',
-});
-
 // User ↔ RefreshTokens
 UserModel.hasMany(RefreshTokenModel, {
   foreignKey: 'userId',
@@ -223,6 +195,9 @@ RefreshTokenModel.belongsTo(UserModel, {
   foreignKey: 'userId',
   as: 'user',
 });
+
+// --- TASK ASSOCIATIONS ---
+
 // Task ↔ Tenant
 TenantModel.hasMany(TaskModal, {
   foreignKey: 'tenantId',
@@ -243,7 +218,7 @@ TaskModal.belongsTo(LeadModel, {
   as: 'lead',
 });
 
-// Task ↔ User (assigned to user)
+// Task ↔ User (Assigned To)
 UserModel.hasMany(TaskModal, {
   foreignKey: 'assignedUserId',
   as: 'assignedTasks',
@@ -253,7 +228,7 @@ TaskModal.belongsTo(UserModel, {
   as: 'assignedUser',
 });
 
-// Task ↔ User (createdBy)
+// Task ↔ User (Created By)
 UserModel.hasMany(TaskModal, {
   foreignKey: 'createdBy',
   as: 'createdTasks',
@@ -263,7 +238,7 @@ TaskModal.belongsTo(UserModel, {
   as: 'creator',
 });
 
-// Task ↔ User (lastUpdatedBy)
+// Task ↔ User (Last Updated By)
 UserModel.hasMany(TaskModal, {
   foreignKey: 'lastUpdatedBy',
   as: 'updatedTasks',
@@ -272,39 +247,46 @@ TaskModal.belongsTo(UserModel, {
   foreignKey: 'lastUpdatedBy',
   as: 'updater',
 });
-// Task ↔ Pipeline
-PipelineModel.hasMany(TaskModal, {
-  foreignKey: 'pipelineId',
-  as: 'tasks',
+
+// Task ↔ TaskDocument
+TaskModal.hasMany(TaskDocument, { foreignKey: 'taskId', as: 'documents' });
+TaskDocument.belongsTo(TaskModal, { foreignKey: 'taskId', as: 'task' });
+
+// Task ↔ TaskComment
+TaskModal.hasMany(TaskComment, { foreignKey: 'taskId', as: 'comments' });
+TaskComment.belongsTo(TaskModal, { foreignKey: 'taskId', as: 'task' });
+
+UserModel.hasMany(TaskComment, { foreignKey: 'userId', as: 'taskComments' });
+TaskComment.belongsTo(UserModel, { foreignKey: 'userId', as: 'user' });
+
+// TaskDocument ↔ User
+UserModel.hasMany(TaskDocument, {
+  foreignKey: 'createdBy',
+  as: 'createdDocuments',
 });
-TaskModal.belongsTo(PipelineModel, {
-  foreignKey: 'pipelineId',
-  as: 'pipeline',
+TaskDocument.belongsTo(UserModel, {
+  foreignKey: 'createdBy',
+  as: 'creator',
 });
 
-// Task ↔ Stage
-StageModel.hasMany(TaskModal, {foreignKey: 'stageId',as: 'tasks',});
-TaskModal.belongsTo(StageModel, {foreignKey: 'stageId',as: 'stage',});
+// --- LEAD DOCUMENT ASSOCIATIONS ---
+LeadModel.hasMany(LeadDocument, {
+  foreignKey: 'leadId',
+  as: 'documents',
+});
+LeadDocument.belongsTo(LeadModel, {
+  foreignKey: 'leadId',
+  as: 'lead',
+});
 
-
-TaskModal.hasMany(TaskNote, {foreignKey: "taskId",as: "notes",});
-
-TaskNote.belongsTo(TaskModal, {foreignKey: "taskId",as: "task",});
-
-
-TaskModal.hasMany(TaskDocument, {foreignKey: "taskId",as: "documents",});
-
-TaskDocument.belongsTo(TaskModal, {foreignKey: "taskId",as: "task",});
-
-
-TaskModal.hasMany(TaskComment, {foreignKey: "taskId",as: "comments",});
-
-TaskComment.belongsTo(TaskModal, {foreignKey: "taskId",as: "task",});
-
-
-UserModel.hasMany(TaskComment, {foreignKey: "userId",as: "taskComments",});
-
-TaskComment.belongsTo(UserModel, {foreignKey: "userId",as: "user",});
+UserModel.hasMany(LeadDocument, {
+  foreignKey: 'createdBy',
+  as: 'createdLeadDocuments',
+});
+LeadDocument.belongsTo(UserModel, {
+  foreignKey: 'createdBy',
+  as: 'creator',
+});
 
 export {
   sequelize,
@@ -318,7 +300,7 @@ export {
   RefreshTokenModel as RefreshToken,
   PipelineAssignmentModel as PipelineAssignment,
   TaskModal as Task,
-  TaskNote,
   TaskDocument,
   TaskComment,
+  LeadDocument,
 };

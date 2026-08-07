@@ -12,6 +12,8 @@ export const ErrorCodes = {
 	CONFLICT: "CONFLICT",
 	INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR",
 	ERROR: "ERROR",
+	TENANT_INACTIVE: "TENANT_INACTIVE",
+	INSUFFICIENT_PERMISSION: "INSUFFICIENT_PERMISSION",
 };
 
 export const ErrorCodesMeta = {
@@ -66,5 +68,13 @@ export const ErrorCodesMeta = {
 	ERROR: {
 		code: ErrorCodes.ERROR,
 		message: "Error",
+	},
+	TENANT_INACTIVE: {
+		code: ErrorCodes.TENANT_INACTIVE,
+		message: "Tenant is inactive",
+	},
+	INSUFFICIENT_PERMISSION: {
+		code: ErrorCodes.INSUFFICIENT_PERMISSION,
+		message: "Insufficient permission",
 	},
 };

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useMantineColorScheme } from '@mantine/core';
 
 export default function ThemeToggle() {
+  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const [dark, setDark] = useState(() => {
     if (typeof window !== 'undefined') {
       return document.documentElement.classList.contains('dark');
@@ -12,18 +14,20 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     const root = document.documentElement;
-    if (dark) {
+    const isDark = colorScheme === 'dark';
+    if (isDark) {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-  }, [dark]);
+    setDark(isDark);
+  }, [colorScheme]);
 
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={() => setDark((prev) => !prev)}
+      onClick={() => toggleColorScheme()}
       aria-label="Toggle theme"
       className="text-foreground hover:text-foreground/80"
     >

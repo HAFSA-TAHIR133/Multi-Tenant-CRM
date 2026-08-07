@@ -2,14 +2,13 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from '@/Features/auth/context/AuthContext';
 import { ROLES } from '@/constants/roles';
 import { pipelinesApi } from '../api/pipelinesApi';
+import { tasksApi } from '@/Features/tasks/api/tasksApi';
 import { toast } from 'sonner';
-
 import { Button, TextInput, Textarea, Select, Title, Text, Modal, Stack, LoadingOverlay, Badge, Group, Paper } from '@mantine/core';
 import { IconPlus, IconPencil, IconTrash, IconLayoutKanban } from '@tabler/icons-react';
-
 import KanbanBoard from '../components/kanban/KanbanBoard';
 import StageManager from '../components/kanban/StageManager';
-
+import EditLeadDialog from '@/Features/leads/components/EditLeadDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,16 +27,17 @@ export default function Pipelines() {
 
   // Core Data States
   const [pipelines, setPipelines] = useState([]);
-  const [, setAllLeads] = useState([]);
+  const [allLeads, setAllLeads] = useState([]);
   const [stages, setStages] = useState([]);
   const [leads, setLeads] = useState([]);
+  const [editLead, setEditLead] = useState(null);
+  const [userTasks, setUserTasks] = useState([]);
 
   // Selection States
   const [selectedPipelineId, setSelectedPipelineId] = useState(() => {
     const saved = localStorage.getItem('selectedPipelineId');
     return saved ? Number(saved) : null;
   });
-
   const [selectedLeadId, setSelectedLeadId] = useState(() => {
     const saved = localStorage.getItem('selectedLeadId');
     return saved ? Number(saved) : null;
@@ -54,14 +54,12 @@ export default function Pipelines() {
   const [stageManagerOpen, setStageManagerOpen] = useState(false);
   const [stageManagerMode, setStageManagerMode] = useState('manage');
   const [editingStageFromKanban, setEditingStageFromKanban] = useState(null);
-
   const [savingPipeline, setSavingPipeline] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
-
   const [deletePipeline, setDeletePipeline] = useState(null);
   const [isDeletingPipeline, setIsDeletingPipeline] = useState(false);
 
-  // Enhanced Button Styles (Preserving color palette: #111111)
+  // Enhanced Button Styles
   const primaryBtnStyle = {
     root: {
       backgroundColor: '#111111',
@@ -96,7 +94,7 @@ export default function Pipelines() {
         borderColor: 'white',
         transform: 'translateY(-1px)',
         boxShadow: '0 3px 8px rgba(0,0,0,0.06)',
-        color:"black"
+        color: 'black',
       },
       '&:active': {
         transform: 'translateY(0)',
@@ -104,44 +102,148 @@ export default function Pipelines() {
     },
   };
 
-  // Selected Pipeline Object
-  const selectedPipeline = useMemo(
-    () => pipelines.find((p) => String(p.id) === String(selectedPipelineId)) || null,
-    [pipelines, selectedPipelineId]
+  // Helper check for lead assignment (including task-based assignments)
+  const isLeadAssignedToUser = useCallback(
+    (lead) => {
+      if (!user) return false;
+      const userIdStr = String(user.id || user._id || user.userId);
+      
+      // Check direct assignment
+      const isDirectlyAssigned = 
+        String(lead.assignedUserId) === userIdStr ||
+        String(lead.assignedTo) === userIdStr ||
+        String(lead.assignedToId) === userIdStr ||
+        String(lead.userId) === userIdStr ||
+        (Array.isArray(lead.assignedUsers) && lead.assignedUsers.some((u) => String(u.id || u) === userIdStr));
+      
+      if (isDirectlyAssigned) return true;
+      
+      // Check if lead is linked via a task assigned to the user
+      const leadId = Number(lead.id);
+      return userTasks.some((task) => Number(task.leadId || task.lead_id) === leadId);
+    },
+    [user, userTasks]
   );
 
-  // Load All Initial Pipeline List and Global Leads
-  const loadInitialData = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [pipeRes, leadsRes] = await Promise.all([
-        pipelinesApi.getAll(),
-        pipelinesApi.getAllLeads(),
-      ]);
+  // Helper check for pipeline assignment
+  const isUserAssignedToPipeline = useCallback(
+    (pipeline) => {
+      if (!user) return false;
+      const userIdStr = String(user.id || user._id || user.userId);
+      return (
+        Array.isArray(pipeline.assignedUsers) &&
+        pipeline.assignedUsers.some((u) => String(u.id || u) === userIdStr)
+      );
+    },
+    [user]
+  );
 
-      const pipeList = Array.isArray(pipeRes?.data) ? pipeRes.data : Array.isArray(pipeRes) ? pipeRes : [];
-      const leadList = Array.isArray(leadsRes?.data) ? leadsRes.data : Array.isArray(leadsRes) ? leadsRes : [];
+  // Filter Pipelines based on Role, Direct Assignment, or Lead Associations
+  const visiblePipelines = useMemo(() => {
+    if (canManage) return pipelines;
 
-      setPipelines(pipeList);
-      setAllLeads(leadList);
+    const userLeadPipelineIds = new Set(
+      allLeads.filter(isLeadAssignedToUser).map((lead) => String(lead.pipelineId || lead.pipeline?.id))
+    );
 
-      // Auto-select initial pipeline
-      const storedPipeId = localStorage.getItem('selectedPipelineId');
-      const validStoredPipe = pipeList.find((p) => String(p.id) === String(storedPipeId));
+    return pipelines.filter(
+      (p) => userLeadPipelineIds.has(String(p.id)) || isUserAssignedToPipeline(p)
+    );
+  }, [pipelines, allLeads, canManage, isLeadAssignedToUser, isUserAssignedToPipeline]);
 
-      if (!validStoredPipe && pipeList.length > 0) {
-        setSelectedPipelineId(pipeList[0].id);
-      } else if (validStoredPipe) {
-        setSelectedPipelineId(validStoredPipe.id);
-      }
-    } catch (err) {
-      setError(err?.message || 'Failed to initialize pipelines');
-      toast.error(err?.message || 'Failed to initialize pipelines');
-    } finally {
-      setLoading(false);
+  // Selected Pipeline Object
+  const selectedPipeline = useMemo(
+    () => visiblePipelines.find((p) => String(p.id) === String(selectedPipelineId)) || null,
+    [visiblePipelines, selectedPipelineId]
+  );
+
+  // Filter Leads based on User Assignment
+  const visibleLeads = useMemo(() => {
+    if (canManage) return leads;
+    return leads.filter(isLeadAssignedToUser);
+  }, [leads, canManage, isLeadAssignedToUser]);
+
+  // Stages remain fully visible so Kanban column structures render even if empty
+  const visibleStages = stages;
+
+ const loadInitialData = async () => {
+  setLoading(true);
+  setError('');
+  try {
+    const [pipeRes, leadsRes, tasksRes] = await Promise.all([
+      pipelinesApi.getAll(),
+      pipelinesApi.getAllLeads().catch(() => ({ data: [] })),
+      !canManage && user?.id ? tasksApi.getTasksForUser(user.id).catch(() => []) : Promise.resolve([]),
+    ]);
+
+    const normalizedTasks = Array.isArray(tasksRes) ? tasksRes :
+      Array.isArray(tasksRes?.data) ? tasksRes.data :
+      Array.isArray(tasksRes?.items) ? tasksRes.items : [];
+    setUserTasks(normalizedTasks);
+
+    const pipeList = Array.isArray(pipeRes?.data) ? pipeRes.data : Array.isArray(pipeRes) ? pipeRes : [];
+    const leadList = Array.isArray(leadsRes?.data) ? leadsRes.data : Array.isArray(leadsRes) ? leadsRes : [];
+
+    setPipelines(pipeList);
+    setAllLeads(leadList);
+
+    // For non-managers, ensure we're filtering correctly
+    let availablePipes = pipeList;
+    if (!canManage && user) {
+      const userIdStr = String(user.id || user._id || user.userId);
+
+      // Get all lead IDs from tasks
+      const taskAssignedLeadIds = new Set(
+        normalizedTasks
+          .map((task) => Number(task.leadId || task.lead_id))
+          .filter(Boolean)
+      );
+
+      // Get all pipeline IDs user should see
+      const userPipelineIds = new Set(
+        leadList
+          .filter((lead) => {
+            const isDirectlyAssigned =
+              String(lead.assignedUserId) === userIdStr ||
+              String(lead.assignedTo) === userIdStr ||
+              String(lead.assignedToId) === userIdStr ||
+              String(lead.userId) === userIdStr ||
+              (Array.isArray(lead.assignedUsers) && lead.assignedUsers.some((u) => String(u.id || u) === userIdStr));
+            
+            if (isDirectlyAssigned) return true;
+
+            // Check if lead is linked via a task
+            return taskAssignedLeadIds.has(Number(lead.id));
+          })
+          .map((l) => String(l.pipelineId || l.pipeline?.id))
+      );
+
+      // Also include pipelines directly assigned to user
+      availablePipes = pipeList.filter(
+        (p) =>
+          userPipelineIds.has(String(p.id)) ||
+          (Array.isArray(p.assignedUsers) && p.assignedUsers.some((u) => String(u.id || u) === userIdStr))
+      );
     }
-  };
+
+    // Auto-select initial pipeline
+    const storedPipeId = localStorage.getItem('selectedPipelineId');
+    const validStoredPipe = availablePipes.find((p) => String(p.id) === String(storedPipeId));
+
+    if (validStoredPipe) {
+      setSelectedPipelineId(validStoredPipe.id);
+    } else if (availablePipes.length > 0) {
+      setSelectedPipelineId(availablePipes[0].id);
+    } else {
+      setSelectedPipelineId(null);
+    }
+  } catch (err) {
+    setError(err?.message || 'Failed to initialize pipelines');
+    toast.error(err?.message || 'Failed to initialize pipelines');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Load Data specific to selected Pipeline
   const loadPipelineData = useCallback(async (pipelineId) => {
@@ -151,12 +253,11 @@ export default function Pipelines() {
       setSelectedLeadId(null);
       return;
     }
-
     setDataLoading(true);
     try {
       const [stageRes, leadRes] = await Promise.all([
         pipelinesApi.getStages(pipelineId),
-        pipelinesApi.getPipelineLeads(pipelineId),
+        pipelinesApi.getPipelineLeads(pipelineId).catch(() => ({ data: [] })),
       ]);
 
       const stageList = Array.isArray(stageRes?.data) ? stageRes.data : Array.isArray(stageRes) ? stageRes : [];
@@ -165,7 +266,6 @@ export default function Pipelines() {
       setStages(stageList);
       setLeads(leadList);
 
-      // Restore active lead if present in pipeline, otherwise pick first available lead
       const currentStoredLeadId = localStorage.getItem('selectedLeadId');
       const activeLeadInPipeline = leadList.find((l) => String(l.id) === String(currentStoredLeadId));
 
@@ -230,7 +330,6 @@ export default function Pipelines() {
       toast.error('Pipeline name is required');
       return;
     }
-
     setSavingPipeline(true);
     try {
       if (editingPipeline) {
@@ -244,7 +343,6 @@ export default function Pipelines() {
           setSelectedPipelineId(createdId);
         }
       }
-
       setPipelineModalOpen(false);
       await loadInitialData();
     } catch (err) {
@@ -256,20 +354,16 @@ export default function Pipelines() {
 
   const confirmDeletePipeline = async () => {
     if (!deletePipeline) return;
-
     setIsDeletingPipeline(true);
     try {
       await pipelinesApi.remove(deletePipeline.id);
       toast.success('Pipeline deleted');
-
       const remaining = pipelines.filter((p) => String(p.id) !== String(deletePipeline.id));
       setPipelines(remaining);
-
       if (String(selectedPipelineId) === String(deletePipeline.id)) {
         const nextPipelineId = remaining.length > 0 ? remaining[0].id : null;
         setSelectedPipelineId(nextPipelineId);
       }
-
       setDeletePipeline(null);
     } catch (err) {
       toast.error(err?.message || 'Failed to delete pipeline');
@@ -298,13 +392,13 @@ export default function Pipelines() {
   };
 
   // Options for Dropdowns
-  const pipelineOptions = pipelines.map((p) => ({
+  const pipelineOptions = visiblePipelines.map((p) => ({
     value: String(p.id),
     label: p.name,
   }));
 
   return (
-    <div style={{ padding: 24, backgroundColor: '#fcfcfc', minHeight: '100vh', position: 'relative' }}>
+    <div className="dark:!bg-transparent" style={{ padding: 24, backgroundColor: '#fcfcfc', minHeight: '100vh', position: 'relative' }}>
       <LoadingOverlay visible={loading} overlayProps={{ blur: 2 }} />
 
       {/* Header Bar */}
@@ -323,7 +417,9 @@ export default function Pipelines() {
             Pipelines
           </Title>
           <Text c="dimmed" size="sm" mt={2}>
-            Manage your sales pipelines and stages in one place.
+            {canManage
+              ? 'Manage your sales pipelines, stages, and update lead information.'
+              : 'View your assigned lead pipelines, active stages, and update lead information.'}
           </Text>
         </div>
 
@@ -355,7 +451,7 @@ export default function Pipelines() {
       </div>
 
       {error ? (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-400">
           {error}
         </div>
       ) : null}
@@ -365,12 +461,13 @@ export default function Pipelines() {
         <div style={{ position: 'relative' }}>
           <LoadingOverlay visible={dataLoading} overlayProps={{ blur: 1 }} />
 
-          {/* Active Pipeline Prominent Card Header */}
+          {/* Active Pipeline Header Card */}
           <Paper
             p="sm"
             mb="md"
             radius="md"
             withBorder
+            className="dark:!border-slate-800 dark:!bg-slate-900"
             style={{
               borderColor: '#e5e7eb',
               backgroundColor: '#ffffff',
@@ -420,7 +517,6 @@ export default function Pipelines() {
                 >
                   Edit Pipeline
                 </Button>
-
                 <Button
                   leftSection={<IconPlus size={14} />}
                   size="xs"
@@ -430,7 +526,6 @@ export default function Pipelines() {
                 >
                   Add Stage
                 </Button>
-
                 <Button
                   leftSection={<IconTrash size={14} />}
                   variant="subtle"
@@ -451,21 +546,24 @@ export default function Pipelines() {
 
           <KanbanBoard
             pipeline={selectedPipeline}
-            stages={stages}
-            leads={leads}
+            stages={visibleStages}
+            leads={visibleLeads}
             selectedLeadId={selectedLeadId}
             canManage={canManage}
             onEditStage={handleEditStage}
             onDeleteStage={() => {}}
             onStagesReorder={handleStagesReorder}
             onDataChanged={() => loadPipelineData(selectedPipelineId)}
+            onEditLead={(lead) => setEditLead(lead)}
           />
         </div>
       ) : (
         !loading && (
-          <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 p-8 text-center bg-white">
+          <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 p-8 text-center bg-white dark:border-slate-700 dark:bg-slate-900">
             <Text c="dimmed" size="sm">
-              No pipelines available. Create one to get started!
+              {canManage
+                ? 'No pipelines available. Create one to get started!'
+                : 'No assigned pipelines found.'}
             </Text>
             {canManage && (
               <Button
@@ -549,6 +647,21 @@ export default function Pipelines() {
           </div>
         </Stack>
       </Modal>
+
+      {/* Edit Lead Dialog */}
+      {editLead ? (
+        <EditLeadDialog
+          opened={true}
+          lead={editLead}
+          onClose={() => setEditLead(null)}
+          onSuccess={() => {
+            setEditLead(null);
+            if (selectedPipelineId) {
+              loadPipelineData(selectedPipelineId);
+            }
+          }}
+        />
+      ) : null}
 
       {/* Delete Pipeline Alert */}
       <AlertDialog open={!!deletePipeline} onOpenChange={(open) => !open && setDeletePipeline(null)}>

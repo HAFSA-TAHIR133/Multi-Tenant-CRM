@@ -10,7 +10,7 @@ router.get('/me', authMiddleware(UserRole.USER), UserController.getMe.bind(UserC
 router.put('/me', authMiddleware(UserRole.USER), UserController.updateMe.bind(UserController));
 
 router.post('/', authMiddleware(UserRole.ADMIN), UserController.createUser.bind(UserController));
-router.get('/', authMiddleware(UserRole.ADMIN), UserController.getAllUsers.bind(UserController));
+router.get('/', authMiddleware(UserRole.USER), UserController.getAllUsers.bind(UserController));
 
 router.get('/:id', authMiddleware(UserRole.USER), allowUserAccess(), UserController.getUserById.bind(UserController));
 router.put('/:id', authMiddleware(UserRole.USER), allowUserAccess(), UserController.updateUser.bind(UserController));

@@ -36,7 +36,7 @@ export function NoteEditor({ value = "", onChange }) {
       attributes: {
         // White background, dark text
         class:
-          "focus:outline-none min-h-[140px] p-3 text-sm bg-white text-gray-900",
+          "focus:outline-none min-h-[140px] p-3 text-sm bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-100",
       },
       handleKeyDown: (view, event) => {
         if (event.key === "Tab") {
@@ -100,7 +100,7 @@ export function NoteEditor({ value = "", onChange }) {
 
   return (
     // IMPORTANT: no z-index higher than surrounding fields; use relative, not fixed z-10
-    <div className="relative border border-gray-300 rounded-md bg-white flex flex-col min-h-[220px]">
+    <div className="relative border border-gray-300 rounded-md bg-white flex flex-col min-h-[220px] dark:border-slate-700 dark:bg-slate-900">
       {/* Toolbar */}
       <div className="border-b border-gray-200 bg-gray-50 p-2 flex flex-wrap gap-2 items-center rounded-t-md">
         {/* Marks */}

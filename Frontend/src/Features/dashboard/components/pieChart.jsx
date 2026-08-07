@@ -9,16 +9,20 @@ import {
 
 // Custom status color mapping
 const STATUS_COLOR_MAP = {
-  open: '#000000',      // Black
-  close: '#cbd5e1',     // Light Grey
-  closed: '#cbd5e1',    // Light Grey
+  open: '#000000',        // Black
+  active: '#000000',      // Black
+  close: '#cbd5e1',       // Light Grey
+  closed: '#cbd5e1',      // Light Grey
+  pending: '#94a3b8',     // Grey (Slate-400)
+  'in progress': '#64748b', // Medium Grey (Slate-500)
 };
 
-const DEFAULT_COLORS = ['#000000', '#cbd5e1', '#64748b', '#94a3b8', '#e2e8f0'];
+// Fallback palette consisting purely of grey tones
+const DEFAULT_COLORS = ['#000000', '#94a3b8', '#cbd5e1', '#64748b', '#e2e8f0'];
 
 const defaultData = [
   { label: 'Active', value: 0, color: '#000000' },
-  { label: 'Inactive', value: 0, color: '#cbd5e1' },
+  { label: 'Pending', value: 0, color: '#94a3b8' },
 ];
 
 const CustomTooltip = ({ active, payload, valueLabel = 'items' }) => {
@@ -27,13 +31,13 @@ const CustomTooltip = ({ active, payload, valueLabel = 'items' }) => {
     if (data.isPlaceholder) return null;
 
     return (
-      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 shadow-lg">
+      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
         <div className="mb-0.5 flex items-center gap-2">
           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: data.color }} />
-          <span className="font-semibold text-slate-900">{data.label}</span>
+          <span className="font-semibold text-slate-900 dark:text-slate-100">{data.label}</span>
         </div>
-        <p className="text-sm font-bold text-slate-900">
-          {data.value} <span className="font-normal text-slate-500">{valueLabel}</span>
+        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+          {data.value} <span className="font-normal text-slate-500 dark:text-slate-400">{valueLabel}</span>
         </p>
       </div>
     );
@@ -54,14 +58,18 @@ export default function PieChart({
       let label = item.label || item.status || item.name || `Category ${index + 1}`;
       const value = Number(item.value ?? item.count ?? 0);
 
-      // Normalize 'close' or 'closed' to 'Closed'
       const lowerKey = label.toLowerCase().trim();
+
+      // Normalize 'close' or 'closed' to 'Closed'
       if (lowerKey === 'close' || lowerKey === 'closed') {
         label = 'Closed';
       }
 
-      // Assign custom color (Light grey for closed, black for open/others)
-      const color = item.color || STATUS_COLOR_MAP[lowerKey] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+      // Assign custom color (Check map first, then item.color, then default grey palette)
+      const color =
+        STATUS_COLOR_MAP[lowerKey] ||
+        item.color ||
+        DEFAULT_COLORS[index % DEFAULT_COLORS.length];
 
       return {
         id: item.id || `pie-item-${lowerKey}-${index}`,
@@ -84,10 +92,10 @@ export default function PieChart({
   }, [rawData, total]);
 
   return (
-    <div className="flex min-h-[260px] w-full flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm">
+    <div className="flex min-h-[260px] w-full flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       {/* Title positioned cleanly at the top */}
       <div className="w-full">
-        <h3 className="text-base font-bold tracking-tight text-slate-900">{title}</h3>
+        <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">{title}</h3>
       </div>
 
       {/* Chart and Legend area centered below the title */}
@@ -117,7 +125,7 @@ export default function PieChart({
                   const cy = viewBox?.cy ?? 55;
                   return (
                     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
-                      <tspan x={cx} dy="-0.1em" className="fill-slate-900 text-base font-extrabold">
+                      <tspan x={cx} dy="-0.1em" className="fill-slate-900 text-base font-extrabold dark:fill-slate-100">
                         {total}
                       </tspan>
                       <tspan x={cx} dy="1.3em" className="fill-slate-400 text-[9px] font-medium">
@@ -140,7 +148,7 @@ export default function PieChart({
               <div key={`legend-${item.id}-${index}`} className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-slate-800">{item.label}</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{item.label}</span>
                   <span className="text-[10px] font-medium text-slate-400">
                     {item.value} ({percentage}%)
                   </span>

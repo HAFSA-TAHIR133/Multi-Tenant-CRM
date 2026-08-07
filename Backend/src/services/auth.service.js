@@ -1,22 +1,97 @@
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import { User, Tenant, Profile, RefreshToken } from '../models/index.js';
 import { UserRole } from '../constants/user-roles.js';
 import { ErrorCodesMeta } from '../constants/error-codes.js';
-// import { generateAccessToken, generateRefreshToken, verifyRefreshToken,} from '../utils/jwt.js';
-import * as jwt from '../utils/index.js';
+import * as jwtUtils from '../utils/index.js';
 import { Op } from 'sequelize';
-// import jwt from 'jsonwebtoken';
 
 const createTokens = (payload) => {
-  const accessToken = jwt.generateAccessToken(payload);
-  const refreshToken = jwt.generateRefreshToken({ userId: payload.userId });
+  const accessToken = jwtUtils.generateAccessToken(payload);
+  const refreshToken = jwtUtils.generateRefreshToken({ userId: payload.userId });
   return { accessToken, refreshToken };
+};
+
+const googleClient = new OAuth2Client({
+  clientId: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+});
+
+/**
+ * Shared post-verification login flow.
+ * Validates user/tenant status, generates tokens, stores refresh token,
+ * and returns the exact same response shape used by email/password login.
+ */
+const finalizeLogin = async (user) => {
+  if (!user.isActive) {
+    const err = new Error('User is inactive');
+    err.code = ErrorCodesMeta.UNAUTHORIZED.code;
+    throw err;
+  }
+
+  if (
+    user.tenant &&
+    String(user.tenant.status || '').toLowerCase() === 'inactive'
+  ) {
+    const err = new Error(ErrorCodesMeta.TENANT_INACTIVE.message);
+    err.code = ErrorCodesMeta.TENANT_INACTIVE.code;
+    throw err;
+  }
+
+  user.lastLogin = new Date();
+  await user.save();
+
+  const payload = {
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    tenantId: user.tenantId,
+    name: user.name,
+  };
+
+  const { accessToken, refreshToken } = createTokens(payload);
+
+  const refreshExpiryDays = Number(
+    process.env.JWT_REFRESH_EXPIRY_DAYS || 7
+  );
+
+  const expiresAt = new Date(
+    Date.now() + refreshExpiryDays * 24 * 60 * 60 * 1000
+  );
+
+  await RefreshToken.create({
+    userId: user.id,
+    token: refreshToken,
+    expiresAt,
+    revoked: false,
+  });
+
+  return {
+    accessToken,
+    refreshToken,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tenantId: user.tenantId,
+    },
+  };
 };
 
 export const AuthService = {
   async createUser(userData, creator) {
-
-    const {name,email,password,role,tenantId,isActive = true,emailVerified = false,profile = {},} = userData;
+    const {
+      name,
+      email,
+      password,
+      role,
+      tenantId,
+      isActive = true,
+      emailVerified = false,
+      profile = {},
+    } = userData;
 
     const allowedRoles = [UserRole.USER, UserRole.ADMIN, UserRole.SUPERADMIN];
     if (!allowedRoles.includes(role)) {
@@ -95,72 +170,80 @@ export const AuthService = {
       throw err;
     }
 
-    if (!user.isActive) {
-      const err = new Error('User is inactive');
-      err.code = ErrorCodesMeta.UNAUTHORIZED.code;
+    return finalizeLogin(user);
+  },
+
+  async googleLogin(code) {
+    if (!code) {
+      const err = new Error('Google authorization code is required');
+      err.code = ErrorCodesMeta.BAD_REQUEST.code;
       throw err;
     }
 
-    if (user.tenant && user.tenant.status === 'Inactive') {
-      const err = new Error(ErrorCodesMeta.TENANT_INACTIVE.message);
-      err.code = ErrorCodesMeta.TENANT_INACTIVE.code;
-      throw err;
+    // Exchange the authorization code for tokens (ID token + access token)
+    let tokenResponse;
+    try {
+      tokenResponse = await googleClient.getToken({
+        code,
+        redirect_uri: 'postmessage',
+      });
+    } catch (err) {
+      const error = new Error('Invalid Google credential');
+      error.code = ErrorCodesMeta.UNAUTHORIZED.code;
+      throw error;
     }
 
-    user.lastLogin = new Date();
-    await user.save();
+    const idToken = tokenResponse?.tokens?.id_token;
 
-    const payload = {
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      tenantId: user.tenantId,
-      name: user.name,
-    };
+    if (!idToken) {
+      const error = new Error('Invalid Google credential');
+      error.code = ErrorCodesMeta.UNAUTHORIZED.code;
+      throw error;
+    }
 
-    const { accessToken, refreshToken } = createTokens(payload);
+    let ticket;
+    try {
+      ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+    } catch (err) {
+      const error = new Error('Invalid Google credential');
+      error.code = ErrorCodesMeta.UNAUTHORIZED.code;
+      throw error;
+    }
 
-    const refreshExpiryDays = Number(
-      process.env.JWT_REFRESH_EXPIRY_DAYS || 7
-    );
+    const payload = ticket.getPayload();
+    const email = payload?.email;
 
-    const expiresAt = new Date(
-      Date.now() + refreshExpiryDays * 24 * 60 * 60 * 1000
-    );
+    if (!email) {
+      const error = new Error('Google account has no email');
+      error.code = ErrorCodesMeta.UNAUTHORIZED.code;
+      throw error;
+    }
 
-    await RefreshToken.create({
-      userId: user.id,
-      token: refreshToken,
-      expiresAt,
-      revoked: false,
+    const user = await User.findOne({
+      where: { email },
+      include: [{ model: Tenant, as: 'tenant', required: false }],
     });
 
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        tenantId: user.tenantId,
-      },
-    };
+    if (!user) {
+      const err = new Error(
+        'Your account is not registered. Please contact your administrator.'
+      );
+      err.code = ErrorCodesMeta.FORBIDDEN.code;
+      throw err;
+    }
+
+    return finalizeLogin(user);
   },
 
   async refreshToken(refreshToken) {
-    console.log("Incoming Refresh Token:");
-    console.log(refreshToken);
-
     let decoded;
 
-
     try {
-      decoded = jwt.verifyRefreshToken(refreshToken);
-      console.log("Decoded Refresh Token:");
-      console.log(decoded);
-    } 
-	catch (err) {
+      decoded = jwtUtils.verifyRefreshToken(refreshToken);
+    } catch (err) {
       const error = new Error('Invalid or expired refresh token');
       error.code = ErrorCodesMeta.UNAUTHORIZED.code;
       throw error;
@@ -189,12 +272,17 @@ export const AuthService = {
       throw error;
     }
 
-	const tenant = await Tenant.findByPk(user.tenantId);
-	if (tenant && tenant.status === "Inactive") {
-		const error = new Error(ErrorCodesMeta.TENANT_INACTIVE.message);
-		error.code = ErrorCodesMeta.TENANT_INACTIVE.code;
-		throw error;
-	}
+    const tenant = user.tenantId
+      ? await Tenant.findByPk(user.tenantId)
+      : null;
+    if (
+      tenant &&
+      String(tenant.status || '').toLowerCase() === 'inactive'
+    ) {
+      const error = new Error(ErrorCodesMeta.TENANT_INACTIVE.message);
+      error.code = ErrorCodesMeta.TENANT_INACTIVE.code;
+      throw error;
+    }
 
     const payload = {
       userId: user.id,
@@ -206,12 +294,7 @@ export const AuthService = {
 
     const { accessToken, refreshToken: newRefreshToken } = createTokens(payload);
 
-    //  for security purposes: rotate refresh token (revoke old, create new)
-    await RefreshToken.update(
-      { revoked: true },
-      { where: { id: stored.id } }
-    );
-
+    // Rotate refresh token atomically: revoke old, create new
     const refreshExpiryDays = Number(
       process.env.JWT_REFRESH_EXPIRY_DAYS || 7
     );
@@ -220,11 +303,23 @@ export const AuthService = {
       Date.now() + refreshExpiryDays * 24 * 60 * 60 * 1000
     );
 
-    await RefreshToken.create({
-      userId: user.id,
-      token: newRefreshToken,
-      expiresAt: newExpiresAt,
-      revoked: false,
+    // Use a transaction to ensure rotation is atomic
+    const sequelize = RefreshToken.sequelize;
+    await sequelize.transaction(async (t) => {
+      await RefreshToken.update(
+        { revoked: true },
+        { where: { id: stored.id }, transaction: t }
+      );
+
+      await RefreshToken.create(
+        {
+          userId: user.id,
+          token: newRefreshToken,
+          expiresAt: newExpiresAt,
+          revoked: false,
+        },
+        { transaction: t }
+      );
     });
 
     return {
@@ -267,14 +362,14 @@ export const AuthService = {
     }
 
     // In production: generate reset token, store hashed, send email
-    const resetToken = jwt.generateAccessToken({
+    const resetToken = jwtUtils.generateAccessToken({
       userId: user.id,
       type: 'password_reset',
     });
 
     return {
       message: 'Password reset link generated',
-    //   resetToken,  remove in production; send via email only
+      //   resetToken,  remove in production; send via email only
     };
   },
 
@@ -282,8 +377,7 @@ export const AuthService = {
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } 
-	catch (err) {
+    } catch (err) {
       const error = new Error('Invalid or expired reset token');
       error.code = ErrorCodesMeta.UNAUTHORIZED.code;
       throw error;

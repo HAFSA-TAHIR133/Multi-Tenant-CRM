@@ -9,9 +9,10 @@ const leadSchema = z.object({
   source: z.string().optional().or(z.literal('')),
   website: z.string().optional().or(z.literal('')),
   value: z.string().optional().or(z.literal('')),
-  status: z.enum(['new', 'open', 'contacted', 'qualified', 'proposal', 'won', 'lost', 'completed']),
-  pipelineId: z.string().min(1, 'Pipeline is required'),
-  stageId: z.string().min(1, 'Stage is required'),
+  status: z.enum(['open', 'closed']),
+  pipelineId: z.string().optional().or(z.literal('')),
+  stageId: z.string().optional().or(z.literal('')),
+  assignedUserId: z.union([z.number(), z.string(), z.null()]).optional()
 });
 
 export default leadSchema;

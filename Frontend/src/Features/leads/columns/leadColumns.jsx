@@ -1,29 +1,19 @@
-import { Button, Group, Select, Text, Badge } from '@mantine/core';
+import { Select, Text, Badge } from '@mantine/core';
 
 const STATUS_COLORS = {
-  new: 'blue',
   open: 'blue',
-  contacted: 'violet',
-  qualified: 'cyan',
-  proposal: 'orange',
-  won: 'green',
-  lost: 'red',
-  close: 'gray',
   closed: 'gray',
 };
 
 const STATUS_OPTIONS = [
-  { value: 'new', label: 'New' },
   { value: 'open', label: 'Open' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'qualified', label: 'Qualified' },
-  { value: 'proposal', label: 'Proposal' },
-  { value: 'won', label: 'Won' },
-  { value: 'lost', label: 'Lost' },
-  { value: 'close', label: 'Closed' },
+  { value: 'closed', label: 'Closed' },
 ];
 
-export const getLeadColumns = ({ onView, onEdit, onDelete, onStatusChange, canManage }) => [
+export const getLeadColumns = ({ 
+  onView, 
+  onStatusChange, 
+}) => [
   {
     accessorKey: 'contactName',
     header: 'Name',
@@ -32,9 +22,9 @@ export const getLeadColumns = ({ onView, onEdit, onDelete, onStatusChange, canMa
       <span
         className="cursor-pointer text-sm font-semibold text-black hover:text-blue-500 transition-colors"
         onClick={() => onView?.(row.original)}
-        >
+      >
         {cell.getValue() || '-'}
-        </span>
+      </span>
     ),
   },
   {
@@ -66,7 +56,10 @@ export const getLeadColumns = ({ onView, onEdit, onDelete, onStatusChange, canMa
     header: 'Status',
     size: 140,
     Cell: ({ row, cell }) => {
-      const currentVal = cell.getValue() || 'open';
+      // Normalize incoming string (e.g., 'close' or 'CLOSED' -> 'closed')
+      const rawVal = String(cell.getValue() || 'open').toLowerCase();
+      const currentVal = rawVal === 'close' ? 'closed' : rawVal;
+
       return (
         <Select
           value={currentVal}
@@ -76,14 +69,13 @@ export const getLeadColumns = ({ onView, onEdit, onDelete, onStatusChange, canMa
           searchable={false}
           size="xs"
           w={120}
-          // Prevents popup from flipping upwards and hiding under table headers
           comboboxProps={{
             withinPortal: true,
             zIndex: 9999,
             position: 'top-start',
             middlewares: { flip: false, shift: true },
             shadow: 'md',
-            dropdownPadding: 4
+            dropdownPadding: 4,
           }}
           maxDropdownHeight={100}
           renderOption={({ option }) => (
@@ -101,36 +93,5 @@ export const getLeadColumns = ({ onView, onEdit, onDelete, onStatusChange, canMa
         />
       );
     },
-  },
-  {
-    accessorKey: 'actions',
-    header: 'Actions',
-    size: 160, // Increased width so Edit and Delete fit on one row cleanly
-    Cell: ({ row }) => (
-      <Group gap={6} wrap="nowrap" align="center" style={{ width: 'max-content' }}>
-        {canManage && (
-          <>
-            <Button
-              variant="light"
-              color="green"
-              size="xs"
-              px="xs"
-              onClick={() => onEdit(row.original)}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="light"
-              color="red"
-              size="xs"
-              px="xs"
-              onClick={() => onDelete(row.original)}
-            >
-              Delete
-            </Button>
-          </>
-        )}
-      </Group>
-    ),
   },
 ];

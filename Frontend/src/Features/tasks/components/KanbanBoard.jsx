@@ -54,16 +54,26 @@ export default function KanbanBoard({
     return map;
   }, [stages, localTasks]);
 
+  // Build a map of stage IDs for fast lookup (stage droppables use "stage-{id}" prefix)
+  const stageIdMap = useMemo(
+    () => Object.fromEntries(stages.map((s) => [`stage-${s.id}`, s.id])),
+    [stages]
+  );
+
   // Find which stage a droppable id belongs to
+  // Stage droppable IDs are prefixed with "stage-" to eliminate collision with task IDs
   const findStageForDroppable = useCallback(
     (droppableId) => {
-      if (stages.some((s) => String(s.id) === String(droppableId))) {
-        return droppableId;
+      const idStr = String(droppableId);
+      // If the droppable has the "stage-" prefix, it's a stage column
+      if (idStr.startsWith("stage-")) {
+        return stageIdMap[idStr] ?? null;
       }
-      const task = localTasks.find((t) => String(t.id) === String(droppableId));
+      // Otherwise it's a task droppable — look up its stage from local state
+      const task = localTasks.find((t) => String(t.id) === idStr);
       return task ? task.stageId : null;
     },
-    [stages, localTasks]
+    [stageIdMap, localTasks]
   );
 
   const handleDragStart = (event) => {
