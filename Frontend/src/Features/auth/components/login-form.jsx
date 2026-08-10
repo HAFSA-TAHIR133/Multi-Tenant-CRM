@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
-import { GalleryVerticalEnd } from 'lucide-react';
+import { GalleryVerticalEnd, Eye, EyeOff } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 
 import { loginSchema } from '../schemas/authSchema';
@@ -18,6 +18,8 @@ import { ROLES } from '@/constants/roles';
 export default function LoginForm({ className, ...props }) {
   const [apiError, setApiError] = useState('');
   const [googleError, setGoogleError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
   const navigate = useNavigate();
   const { login, googleLogin } = useAuth();
   const { setActiveTenant } = useTenant();
@@ -59,7 +61,7 @@ export default function LoginForm({ className, ...props }) {
       setApiError(err.message || 'Login failed');
     }
   };
-  
+
   const triggerGoogleLogin = useGoogleLogin({
     flow: 'auth-code',
     onSuccess: async (codeResponse) => {
@@ -145,14 +147,28 @@ export default function LoginForm({ className, ...props }) {
                 ⚠ {errors.password.message}
               </p>
             )}
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-purple-500 focus-visible:border-purple-500 rounded-lg h-10 transition-all"
-              {...register('password')}
-              aria-invalid={!!errors.password}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-purple-500 focus-visible:border-purple-500 rounded-lg h-10 pr-10 transition-all"
+                {...register('password')}
+                aria-invalid={!!errors.password}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors focus:outline-none"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Main Submit Button */}

@@ -1,9 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { authApi } from "../api/authApi";
 import { useTenant } from "@/context/TenantContext.jsx";
 import { AUTH_UPDATED_EVENT } from "@/api/fetchApiHelper.jsx";
 
 export const AuthContext = createContext(null);
+
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
 
 function safeParse(value) {
   try {
@@ -21,8 +23,35 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const { activeTenant, setActiveTenant, clearTenant } = useTenant();
+  
+  // Ref to hold the idle timeout ID across renders
+  const inactivityTimerRef = useRef(null);
 
-  // Keep localStorage sync centralized without accidental deletes
+  // Centralized logout function (clears backend session + frontend state)
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } catch (err) {
+      console.error("Logout request failed (session may already be expired):", err);
+    } finally {
+      // Clear React Context state
+      setUser(null);
+      setAccessToken(null);
+      
+      // Clear Tenant Context state
+      clearTenant();
+      
+      // Clear local storage
+      localStorage.removeItem("auth");
+
+      // Clear any pending inactivity timers
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    }
+  }, [clearTenant]);
+
+  // Keep localStorage sync centralized
   useEffect(() => {
     if (user && accessToken) {
       const currentAuth = safeParse(localStorage.getItem("auth")) || {};
@@ -38,6 +67,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, accessToken, activeTenant]);
 
+  // Sync state with global auth update events
   useEffect(() => {
     const handleAuthUpdated = () => {
       const current = safeParse(localStorage.getItem("auth"));
@@ -58,6 +88,43 @@ export const AuthProvider = ({ children }) => {
     window.addEventListener(AUTH_UPDATED_EVENT, handleAuthUpdated);
     return () => window.removeEventListener(AUTH_UPDATED_EVENT, handleAuthUpdated);
   }, [clearTenant]);
+
+  // Handle 15-minute Inactivity Timeout
+  useEffect(() => {
+    // Only set up activity tracking if user is logged in
+    if (!user || !accessToken) return;
+
+    const resetInactivityTimer = () => {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+
+      inactivityTimerRef.current = setTimeout(() => {
+        authApi.logout();
+      }, INACTIVITY_TIMEOUT);
+    };
+
+    // User interaction events to track activity
+    const activityEvents = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+
+    // Initialize timer immediately on mount/login
+    resetInactivityTimer();
+
+    // Attach listeners
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, resetInactivityTimer);
+    });
+
+    // Cleanup listeners and timer on unmount or logout
+    return () => {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, resetInactivityTimer);
+      });
+    };
+  }, [user, accessToken, logout]);
 
   const establishSession = (data) => {
     const nextUser = data.user || null;
@@ -99,19 +166,6 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(false);
     }
   };
-
-  const logout = useCallback(async () => {
-    try {
-      await authApi.logout();
-    } catch (err) {
-      console.error("Logout failed:", err);
-    } finally {
-      setUser(null);
-      setAccessToken(null);
-      clearTenant();
-      localStorage.removeItem("auth");
-    }
-  }, [clearTenant]);
 
   const refreshSession = useCallback(async () => {
     const data = await authApi.refresh();
