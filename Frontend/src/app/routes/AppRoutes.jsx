@@ -22,7 +22,7 @@ import Users from '@/Features/users/pages/Users';
 import UserDetails from '@/Features/users/pages/UserDetails';
 import Tasks from '@/Features/tasks/pages/Tasks';
 import EditLeadDialog from '@/Features/leads/components/EditLeadDialog';
-import NotFound from '../components/common/pages/NotFound';
+import NotFound from '../../../src/components/common/pages/NotFound';
 
 export default function AppRoutes() {
   return (
