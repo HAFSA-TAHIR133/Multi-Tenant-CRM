@@ -68,7 +68,6 @@ export default function LoginForm({ className, ...props }) {
       setApiError('');
       setGoogleError('');
       try {
-        // Sends the authorization code to the backend, which exchanges it for tokens
         const response = await googleLogin(codeResponse.code);
         redirectByRole(response);
       } catch (err) {
@@ -96,11 +95,11 @@ export default function LoginForm({ className, ...props }) {
     <div className={cn('flex flex-col gap-6 w-full text-slate-100', className)} {...props}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="space-y-4">
-          {/* Header */}
+          {/* Header & Logo */}
           <div className="flex flex-col items-center gap-2 text-center">
             <a href="#" className="flex flex-col items-center gap-2 font-medium">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white shadow-lg shadow-purple-500/30">
-                <GalleryVerticalEnd className="size-5" />
+              <div className="flex size-10 items-center justify-center rounded-xl border border-slate-700 bg-gradient-to-tr from-slate-900 to-slate-800 text-white shadow-md shadow-black/40">
+                <GalleryVerticalEnd className="size-5 text-slate-200" />
               </div>
               <span className="sr-only">Acme Inc.</span>
             </a>
@@ -118,7 +117,7 @@ export default function LoginForm({ className, ...props }) {
           {/* Email Field */}
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-xs font-semibold text-slate-300">
-              Email <span className="text-purple-400">*</span>
+              Email <span className="text-slate-400">*</span>
             </Label>
             {errors.email && (
               <p className="text-xs font-medium text-red-400">
@@ -129,7 +128,7 @@ export default function LoginForm({ className, ...props }) {
               id="email"
               type="email"
               placeholder="name@example.com"
-              className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-purple-500 focus-visible:border-purple-500 rounded-lg h-10 transition-all"
+              className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-slate-400 focus-visible:border-slate-400 rounded-lg h-10 transition-all"
               {...register('email')}
               aria-invalid={!!errors.email}
             />
@@ -139,7 +138,7 @@ export default function LoginForm({ className, ...props }) {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="password" className="text-xs font-semibold text-slate-300">
-                Password <span className="text-purple-400">*</span>
+                Password <span className="text-slate-400">*</span>
               </Label>
             </div>
             {errors.password && (
@@ -152,7 +151,7 @@ export default function LoginForm({ className, ...props }) {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-purple-500 focus-visible:border-purple-500 rounded-lg h-10 pr-10 transition-all"
+                className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-slate-400 focus-visible:border-slate-400 rounded-lg h-10 pr-10 transition-all"
                 {...register('password')}
                 aria-invalid={!!errors.password}
               />
@@ -171,11 +170,11 @@ export default function LoginForm({ className, ...props }) {
             </div>
           </div>
 
-          {/* Main Submit Button */}
+          {/* Main Submit Button (Black/White Monochrome theme) */}
           <div className="pt-2">
             <Button
               type="submit"
-              className="w-full h-10 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-purple-600/25 transition-all duration-200 active:scale-[0.98]"
+              className="w-full h-10 rounded-lg bg-slate-100 hover:bg-white text-slate-950 font-semibold shadow-md shadow-black/20 transition-all duration-200 active:scale-[0.98]"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Signing in...' : 'Sign in'}
@@ -236,11 +235,11 @@ export default function LoginForm({ className, ...props }) {
       {/* Footer Legal Terms */}
       <p className="text-center text-xs text-slate-400">
         By clicking continue, you agree to our{' '}
-        <a href="#" className="underline underline-offset-4 hover:text-purple-300 transition-colors">
+        <a href="#" className="underline underline-offset-4 hover:text-white transition-colors">
           Terms of Service
         </a>{' '}
         and{' '}
-        <a href="#" className="underline underline-offset-4 hover:text-purple-300 transition-colors">
+        <a href="#" className="underline underline-offset-4 hover:text-white transition-colors">
           Privacy Policy
         </a>
         .

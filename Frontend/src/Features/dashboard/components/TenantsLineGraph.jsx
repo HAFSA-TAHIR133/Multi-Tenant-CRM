@@ -152,7 +152,6 @@ export default function TenantsLineGraph({
 
       <div className="h-64 w-full sm:h-72">
         <ResponsiveContainer width="100%" height="100%">
-          {/* Note: Updated left margin to 15 so currency labels like $0 and $100 don't get clipped off-screen */}
           <AreaChart data={currentData} margin={{ top: 10, right: 1, left: 2, bottom: 0 }}>
             <defs>
               <linearGradient id="graphGlow" x1="0" y1="0" x2="0" y2="1">

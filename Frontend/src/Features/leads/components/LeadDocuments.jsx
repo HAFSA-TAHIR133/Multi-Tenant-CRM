@@ -9,7 +9,6 @@ import {
   FiExternalLink,
   FiLoader,
   FiDownload,
-  FiEye,
 } from "react-icons/fi";
 
 import {
@@ -105,7 +104,6 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
     }
   };
 
-  // Force download (Cloudinary attachment flag when possible)
   const handleDownload = async (doc) => {
     const url = doc.url || doc.path;
     const fileName =
@@ -213,7 +211,6 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
                     key={docId || Math.random()}
                     className="flex items-center justify-between gap-2 p-2.5 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/60 hover:border-violet-200 dark:hover:border-violet-900/40 transition-all group"
                   >
-                    {/* Name — click / hover for preview or download */}
                     <div
                       onClick={() => handlePreviewOrOpen(doc)}
                       className="flex items-center gap-2.5 min-w-0 pr-2 flex-1 cursor-pointer"

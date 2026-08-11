@@ -97,7 +97,6 @@ export default function Leads() {
     }
   };
 
-  // Generate columns without inline edit/delete handlers
   const columns = useMemo(
     () =>
       getLeadColumns({

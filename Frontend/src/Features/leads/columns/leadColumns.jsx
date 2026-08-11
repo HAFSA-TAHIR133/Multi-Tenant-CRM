@@ -56,7 +56,6 @@ export const getLeadColumns = ({
     header: 'Status',
     size: 140,
     Cell: ({ row, cell }) => {
-      // Normalize incoming string (e.g., 'close' or 'CLOSED' -> 'closed')
       const rawVal = String(cell.getValue() || 'open').toLowerCase();
       const currentVal = rawVal === 'close' ? 'closed' : rawVal;
 

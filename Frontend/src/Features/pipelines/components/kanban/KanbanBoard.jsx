@@ -29,9 +29,6 @@ import { toast } from 'sonner';
 import { pipelinesApi } from '../../api/pipelinesApi';
 import LeadDetailSheet from './LeadDetailSheet';
 
-/* ------------------------------------------------------------------ */
-/*  Column                                                            */
-/* ------------------------------------------------------------------ */
 function DraggableStage({
   stage,
   leads,
@@ -205,9 +202,6 @@ function DraggableStage({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Lead card                                                         */
-/* ------------------------------------------------------------------ */
 function DraggableLeadCard({ lead, onClick }) {
   const {
     attributes,
@@ -264,9 +258,6 @@ function DraggableLeadCard({ lead, onClick }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Board                                                             */
-/* ------------------------------------------------------------------ */
 export default function KanbanBoard({
   pipeline,
   stages = [],
@@ -299,7 +290,7 @@ export default function KanbanBoard({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  // Filter leads based on localLeads state (synced with the passed `leads` prop)
+  // Filter leads based on localLeads state
   const grouped = useMemo(() => {
     const map = {};
     localStages.forEach((s) => {
@@ -374,7 +365,6 @@ export default function KanbanBoard({
         return;
       }
 
-      /* ---- lead → lead (same or different stage) ---- */
       if (activeId.startsWith('lead-') && overId.startsWith('lead-')) {
         const lId = activeId.replace('lead-', '');
         const oLId = overId.replace('lead-', '');
@@ -382,7 +372,7 @@ export default function KanbanBoard({
         const oLead = localLeads.find((l) => String(l.id) === oLId);
         if (!aLead || !oLead) return;
 
-        // Same stage - reorder within stage
+
         if (String(aLead.stageId) === String(oLead.stageId)) {
           const stageLeads = [...(grouped[aLead.stageId] || [])];
           const oi = stageLeads.findIndex((l) => String(l.id) === lId);
@@ -395,8 +385,6 @@ export default function KanbanBoard({
           setLocalLeads([...otherLeads, ...reorderedLeads]);
           return;
         }
-
-        // Different stage - move lead to target stage
         const targetStageId = oLead.stageId;
         setLocalLeads((prev) =>
           prev.map((l) =>
@@ -414,7 +402,6 @@ export default function KanbanBoard({
         return;
       }
 
-      /* ---- lead → stage column ---- */
       if (activeId.startsWith('lead-') && overId.startsWith('stage-')) {
         const lId = activeId.replace('lead-', '');
         const sId = overId.replace('stage-', '');

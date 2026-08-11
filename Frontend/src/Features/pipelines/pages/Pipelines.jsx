@@ -163,7 +163,6 @@ export default function Pipelines() {
     return leads.filter(isLeadAssignedToUser);
   }, [leads, canManage, isLeadAssignedToUser]);
 
-  // Stages remain fully visible so Kanban column structures render even if empty
   const visibleStages = stages;
 
  const loadInitialData = async () => {

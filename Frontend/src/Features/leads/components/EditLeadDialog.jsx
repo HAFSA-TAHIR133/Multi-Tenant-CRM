@@ -42,12 +42,10 @@ export default function EditLeadDialog({ opened, lead, onClose, onSuccess }) {
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
-  // Fetch users list for assignee dropdown
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
       const res = await fetchApi('/user');
-      // Handle response envelope gracefully
       const uList = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       setUsers(uList);
     } catch (err) {
@@ -63,7 +61,6 @@ export default function EditLeadDialog({ opened, lead, onClose, onSuccess }) {
     }
   }, [opened, loadUsers]);
 
-  // Sync current lead values into form state when opened
   useEffect(() => {
     if (opened && lead) {
       reset({
@@ -107,7 +104,6 @@ export default function EditLeadDialog({ opened, lead, onClose, onSuccess }) {
         assignedUserId: parsedAssignedUserId,
       };
 
-      // Single clean API request to update all fields including assignment
       const updatedLead = await leadsApi.update(lead.id, payload);
 
       toast.success('Lead details updated successfully');

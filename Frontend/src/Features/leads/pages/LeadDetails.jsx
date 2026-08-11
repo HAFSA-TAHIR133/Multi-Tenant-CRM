@@ -442,7 +442,6 @@ export default function LeadDetails() {
 
         {/* Right Column */}
         <Stack gap="lg">
-          {/* ✅ Lead Documents — always visible */}
           <Card
             withBorder
             radius="lg"
@@ -452,7 +451,6 @@ export default function LeadDetails() {
             <LeadDocuments leadId={id} isRegularUser={isRegularUser} />
           </Card>
 
-          {/* ✅ Pipeline & Stage Card — ALWAYS visible, but disabled for regular users */}
           <Card
             withBorder
             radius="lg"
@@ -553,7 +551,6 @@ export default function LeadDetails() {
         }}
       />
 
-      {/* ✅ Edit Pipeline & Stage Dialog — ALWAYS visible, but inputs disabled for regular users */}
       <EditPipelineStageDialog
         opened={editPipelineOpened}
         onClose={() => setEditPipelineOpened(false)}

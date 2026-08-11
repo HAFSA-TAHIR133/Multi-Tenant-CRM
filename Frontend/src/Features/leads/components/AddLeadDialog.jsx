@@ -213,7 +213,6 @@ const createEmptyStage = () => ({
   color: '#111111',
 });
 
-// Status options restricted strictly to 'open' and 'closed'
 const STATUS_OPTIONS = [
   { value: 'open', label: 'Open' },
   { value: 'closed', label: 'Closed' },
@@ -404,7 +403,6 @@ export default function AddLeadDialog({ opened, onClose, onSuccess }) {
     label: s.name,
   }));
 
-  // Displays only the user's name (or email if name is missing)
   const userOptions = users.map((u) => ({
     value: String(u.id || u._id),
     label: u.name || u.email,

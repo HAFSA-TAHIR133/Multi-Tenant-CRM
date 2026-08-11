@@ -11,7 +11,6 @@ import {SortableContext,arrayMove,verticalListSortingStrategy,useSortable,
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
 import { pipelinesApi } from '../../api/pipelinesApi';
-import { b } from 'framer-motion/client';
 
 const normalizeHex = (v, fallback = '#111111') => {
   if (typeof v !== 'string') return fallback;
@@ -163,7 +162,7 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
       </Text>
 
       <Group gap="xs" align="center">
-        {/* Interactive Spectrum Popover Trigger */}
+        {/*  Spectrum Popover Trigger */}
         <Popover
           opened={popoverOpened}
           onChange={setPopoverOpened}
@@ -247,7 +246,6 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
           }}
         />
 
-        {/* Dynamic Color Preview Badge */}
         <Box
           style={{
             padding: '4px 10px',
@@ -274,7 +272,6 @@ export default function StageManager({
   opened,
   onClose,
   pipelineId,
-  canManage,
   stages = [],
   onChanged,
   editStage = null,
@@ -430,7 +427,6 @@ export default function StageManager({
         }}
       >
         <Stack gap="md">
-          {/* SECTION 1: CREATE / EDIT FORM */}
           <Paper withBorder p="sm" radius="md" style={{ backgroundColor: '#f8fafc' }}>
             <Group justify="space-between" mb={8}>
               <Text fw={600} size="xs" c="dark">
@@ -492,7 +488,6 @@ export default function StageManager({
 
           <Divider label="Existing Stages" labelPosition="center" />
 
-          {/* SECTION 2: STAGE LIST WITH DRAG AND DROP */}
           <Stack gap="xs">
             {!pipelineId ? (
               <Text size="xs" c="dimmed" ta="center">
@@ -528,7 +523,6 @@ export default function StageManager({
         </Stack>
       </Modal>
 
-      {/* CONFIRM DELETE MODAL */}
       <Modal
         opened={!!confirmDelete && opened}
         onClose={() => setConfirmDelete(null)}

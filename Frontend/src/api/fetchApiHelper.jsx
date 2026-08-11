@@ -1,7 +1,6 @@
 const BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/+$/, "");
 
-// --- Auth storage helpers ---
 function getAuth() {
   try {
     return JSON.parse(localStorage.getItem("auth") || "null");
@@ -14,21 +13,14 @@ function setAuth(nextAuth) {
   localStorage.setItem("auth", JSON.stringify(nextAuth));
 }
 
-// --- Single-flight refresh promise ---
-// Prevents multiple simultaneous 401s from triggering multiple refresh calls.
 let refreshPromise = null;
 
-// --- Event to notify AuthContext that the access token changed ---
 const AUTH_UPDATED_EVENT = "auth:updated";
 
 function notifyAuthUpdated() {
   window.dispatchEvent(new CustomEvent(AUTH_UPDATED_EVENT));
 }
 
-/**
- * Directly calls the refresh endpoint WITHOUT going through fetchApi.
- * This avoids infinite recursion (fetchApi would try to refresh again on 401).
- */
 async function refreshAccessToken() {
   const auth = getAuth();
 
@@ -69,16 +61,12 @@ async function refreshAccessToken() {
 
   setAuth(nextAuth);
 
-  // Notify React state (AuthContext) that the token changed
   notifyAuthUpdated();
 
   return newAccessToken;
 }
 
-/**
- * Single-flight wrapper: if a refresh is already in progress,
- * all callers share the same promise.
- */
+
 function getRefreshedToken() {
   if (!refreshPromise) {
     refreshPromise = refreshAccessToken()
@@ -89,17 +77,11 @@ function getRefreshedToken() {
   return refreshPromise;
 }
 
-/**
- * Clears auth state and notifies the app to redirect to login.
- */
 function clearAuthState() {
   localStorage.removeItem("auth");
   notifyAuthUpdated();
 }
 
-// Auth endpoints should never trigger the refresh flow.
-// A 401 from these means the login/refresh itself failed, not that the
-// access token expired. Retrying would cause a confusing "Refresh token required".
 const AUTH_ENDPOINTS = [
   "/auth/login",
   "/auth/google",
@@ -130,7 +112,6 @@ export async function fetchApi(endpoint, options = {}, retrying = false) {
     ...rest
   } = options;
 
-  // CRITICAL: Do NOT set Content-Type if body is FormData
   const finalHeaders = { ...headers };
   if (!(body instanceof FormData)) {
     finalHeaders["Content-Type"] = "application/json";
@@ -143,11 +124,7 @@ export async function fetchApi(endpoint, options = {}, retrying = false) {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...finalHeaders,
-      ...(token
-        ? {
-            Authorization: `Bearer ${token}`,
-          }
+      ...finalHeaders,...(token? {Authorization: `Bearer ${token}`,}
         : {}),
       ...(tenantId
         ? {
@@ -158,7 +135,6 @@ export async function fetchApi(endpoint, options = {}, retrying = false) {
     ...rest,
   };
 
-  // Remove Content-Type header if body is FormData
   if (body instanceof FormData) {
     delete config.headers["Content-Type"];
   }
@@ -177,15 +153,8 @@ export async function fetchApi(endpoint, options = {}, retrying = false) {
     data = null;
   }
 
-  /**
-   * Access Token Expired
-   * Try Refresh Once (single-flight, no infinite loop)
-   * Auth endpoints are excluded — a 401 there means the login/refresh
-   * itself failed, not that the access token expired.
-   */
   if (res.status === 401 && !retrying && !isAuthEndpoint(endpoint)) {
     try {
-      // Single-flight: all concurrent 401s share one refresh call
       const newToken = await getRefreshedToken();
 
       const retryAuth = getAuth();
@@ -233,7 +202,6 @@ export async function fetchApi(endpoint, options = {}, retrying = false) {
 
       return retryData;
     } catch (refreshError) {
-      // Refresh failed (invalid/expired/revoked refresh token) → force logout
       clearAuthState();
       throw refreshError;
     }

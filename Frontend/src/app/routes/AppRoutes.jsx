@@ -21,8 +21,8 @@ import Pipelines from '@/Features/pipelines/pages/Pipelines';
 import Users from '@/Features/users/pages/Users';
 import UserDetails from '@/Features/users/pages/UserDetails';
 import Tasks from '@/Features/tasks/pages/Tasks';
-import AddLeadDialog from '@/Features/leads/components/AddLeadDialog';
 import EditLeadDialog from '@/Features/leads/components/EditLeadDialog';
+import NotFound from '../../Features/common/pages/NotFound';
 
 export default function AppRoutes() {
   return (
@@ -68,7 +68,7 @@ export default function AppRoutes() {
       </Route>
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

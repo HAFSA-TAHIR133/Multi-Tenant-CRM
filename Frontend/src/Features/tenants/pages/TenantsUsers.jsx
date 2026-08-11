@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { usersApi } from '../../users/api/usersApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +12,31 @@ import FormDialog from '@/components/common/FormDialog';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { userColumns } from '../../users/columns/userColumns';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldError,
+} from '@/components/ui/field';
+
+// Dynamic Zod Schema Generator
+const getFormSchema = (isEdit = false) =>
+  z.object({
+    name: z.string().min(2, 'Name must be at least 2 characters.'),
+    email: z.string().email('Please enter a valid email address.'),
+    password: isEdit
+      ? z
+          .string()
+          .optional()
+          .refine((val) => !val || val.length >= 6, {
+            message: 'Password must be at least 6 characters if provided.',
+          })
+      : z.string().min(6, 'Password must be at least 6 characters.'),
+    role: z.coerce.number(),
+    isActive: z.boolean(),
+  });
 
 export default function TenantUsers() {
   const { tenantId } = useParams();
@@ -25,23 +50,17 @@ export default function TenantUsers() {
   const [formLoading, setFormLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
 
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 1,
-    isActive: true,
-  });
-
-  const resetForm = () => {
-    setForm({
+  // React Hook Form Configuration
+  const form = useForm({
+    resolver: zodResolver(getFormSchema(!!editUser)),
+    defaultValues: {
       name: '',
       email: '',
       password: '',
       role: 1,
       isActive: true,
-    });
-  };
+    },
+  });
 
   const normalizeUsers = (res) => {
     const raw = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
@@ -87,46 +106,67 @@ export default function TenantUsers() {
     );
   }, [users, globalFilter]);
 
+  const handleOpenChange = (open) => {
+    setFormOpen(open);
+    if (!open) {
+      setEditUser(null);
+      form.reset({
+        name: '',
+        email: '',
+        password: '',
+        role: 1,
+        isActive: true,
+      });
+    }
+  };
+
   const openCreateForm = () => {
-    resetForm();
     setEditUser(null);
+    form.reset({
+      name: '',
+      email: '',
+      password: '',
+      role: 1,
+      isActive: true,
+    });
     setFormOpen(true);
   };
 
   const openEditForm = (user) => {
     setEditUser(user);
-    setForm({
+    form.reset({
       name: user.name || '',
       email: user.email || '',
       password: '',
-      role: user.role || 1,
+      role: user.role ?? 1,
       isActive: user.isActive ?? true,
     });
     setFormOpen(true);
   };
 
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
+  const handleFormSubmit = async (data) => {
     setFormLoading(true);
     try {
       const payload = {
-        name: form.name,
-        email: form.email,
-        role: form.role,
-        isActive: form.isActive,
-        ...(form.password ? { password: form.password } : {}),
+        name: data.data ? data.data.name : data.name,
+        email: data.data ? data.data.email : data.email,
+        role: Number(data.role),
+        isActive: data.isActive,
+        ...(data.password ? { password: data.password } : {}),
       };
 
       if (editUser) {
         await usersApi.updateUser(editUser.id, payload);
       } else {
-        await usersApi.createUser({ ...payload, password: form.password });
+        await usersApi.createUser({
+          ...payload,
+          password: data.password,
+          tenantId: tenantId,
+        });
       }
 
       await loadUsers();
-      setFormOpen(false);
-      resetForm();
-      setEditUser(null);
+      handleOpenChange(false);
     } catch (err) {
       setError(err.message || 'Failed to save user');
     } finally {
@@ -230,88 +270,123 @@ export default function TenantUsers() {
 
       <FormDialog
         open={formOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setFormOpen(false);
-            setEditUser(null);
-            resetForm();
-          }
-        }}
+        onOpenChange={handleOpenChange}
         title={editUser ? 'Edit User' : 'Add User'}
+        description={
+          editUser? 'Update user details, credentials, or access permissions.'
+            : 'Create a new user account for your tenant.'
+        }
         submitLabel={editUser ? 'Update User' : 'Create User'}
-        onSubmit={handleFormSubmit}
+        onSubmit={form.handleSubmit(handleFormSubmit)}
         loading={formLoading}
       >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              name="name"
-              value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              required
-            />
-          </div>
+        <FieldGroup className="space-y-4">
+          {/* Name Field */}
+          <Controller
+            name="name"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="tenant-user-name">Name</FieldLabel>
+                <Input
+                  {...field}
+                  id="tenant-user-name"
+                  aria-invalid={fieldState.invalid}
+                  placeholder="Type Name"
+                  autoComplete="off"
+                />
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+              </Field>
+            )}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-              required
-            />
-          </div>
+          {/* Email Field */}
+          <Controller
+            name="email"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="tenant-user-email">Email</FieldLabel>
+                <Input
+                  {...field}
+                  id="tenant-user-email"
+                  type="email"
+                  aria-invalid={fieldState.invalid}
+                  placeholder="email@example.com"
+                  autoComplete="off"
+                />
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+              </Field>
+            )}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password{!editUser ? ' *' : ''}</Label>
-            <Input
-              id="password"
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-              placeholder={editUser ? 'Leave blank to keep current' : ''}
-              required={!editUser}
-            />
-          </div>
+          {/* Password Field */}
+          <Controller
+            name="password"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="tenant-user-password">
+                  Password{!editUser ? ' *' : ''}
+                </FieldLabel>
+                <Input
+                  {...field}
+                  id="tenant-user-password"
+                  type="password"
+                  aria-invalid={fieldState.invalid}
+                  placeholder={editUser ? 'Leave blank to keep current' : '••••••••'}
+                  autoComplete="new-password"
+                />
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+              </Field>
+            )}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <select
-              id="role"
-              name="role"
-              value={form.role}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, role: Number(e.target.value) }))
-              }
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value={1}>User</option>
-              <option value={2}>Admin</option>
-              <option value={3}>Super Admin</option>
-            </select>
-          </div>
+          {/* Role Select Field */}
+          <Controller
+            name="role"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="tenant-user-role">Role</FieldLabel>
+                <select
+                  {...field}
+                  id="tenant-user-role"
+                  aria-invalid={fieldState.invalid}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value={1}>User</option>
+                  <option value={2}>Admin</option>
+                  <option value={3}>Super Admin</option>
+                </select>
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+              </Field>
+            )}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="isActive">Status</Label>
-            <select
-              id="isActive"
-              name="isActive"
-              value={String(form.isActive)}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, isActive: e.target.value === 'true' }))
-              }
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="true">Active</option>
-              <option value="false">Deactivate</option>
-            </select>
-          </div>
-        </div>
+          {/* Status Select Field */}
+          <Controller
+            name="isActive"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="tenant-user-status">Status</FieldLabel>
+                <select
+                  id="tenant-user-status"
+                  value={String(field.value)}
+                  aria-invalid={fieldState.invalid}
+                  onChange={(e) => field.onChange(e.target.value === 'true')}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="true">Active</option>
+                  <option value="false">Deactivate</option>
+                </select>
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+              </Field>
+            )}
+          />
+        </FieldGroup>
       </FormDialog>
 
       <ConfirmDialog
