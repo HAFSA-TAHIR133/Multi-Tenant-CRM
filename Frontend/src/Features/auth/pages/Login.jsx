@@ -18,12 +18,12 @@ export default function Login() {
   }, [location.state]);
 
   return (
-    <main className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-950 p-4 text-slate-100 antialiased">
-    
+    <main className="relative grid min-h-screen w-full place-items-center overflow-hidden bg-slate-950 p-4 text-slate-100 antialiased">
+      {/* Background */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <MagicRings
-          color="#ffffff"          
-          colorTwo="#64748b"       
+          color="#ffffff"
+          colorTwo="#64748b"
           ringCount={6}
           speed={0.8}
           attenuation={10}
@@ -31,7 +31,7 @@ export default function Login() {
           baseRadius={0.35}
           radiusStep={0.1}
           scaleRate={0.1}
-          opacity={0.75}          
+          opacity={0.75}
           blur={0}
           noiseAmount={0.08}
           rotation={0}
@@ -45,8 +45,8 @@ export default function Login() {
         />
       </div>
 
-      {/* Login Card Container */}
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-slate-900/60 p-6 sm:p-8 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] transition-all duration-300 hover:border-white/20">
+      {/* Login Card - perfectly centered on all screen sizes */}
+      <div className="relative z-10 w-full max-w-md mx-auto rounded-2xl border border-white/10 bg-slate-900/60 p-6 sm:p-8 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] transition-all duration-300 hover:border-white/20">
         <LoginForm />
       </div>
     </main>
