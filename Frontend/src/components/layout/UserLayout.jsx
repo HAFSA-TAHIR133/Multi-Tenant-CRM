@@ -1,9 +1,9 @@
-// src/components/layout/UserLayout.jsx
 
 import { Outlet } from "react-router-dom";
 import AppSidebar from "@/components/layout/app-sidebar";
 import ThemeToggle from "@/components/ThemeToggle";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import NavUser from "@/components/layout/nav-user"; 
 
 export default function UserLayout() {
   return (
@@ -11,13 +11,14 @@ export default function UserLayout() {
       <div className="flex min-h-screen w-full">
         <AppSidebar />
 
-        {/* flex-col ensures header sits on top and Outlet sits below */}
         <SidebarInset className="flex flex-1 flex-col min-h-screen">
           <header className="h-16 shrink-0 border-b">
-            {/* Forces horizontal layout */}
             <div className="flex h-full w-full flex-row items-center justify-between px-6">
               <SidebarTrigger className="-ml-1" />
-              <ThemeToggle />
+              <div className="flex items-center gap-4">
+                <ThemeToggle />
+                <NavUser />
+              </div>
             </div>
           </header>
 

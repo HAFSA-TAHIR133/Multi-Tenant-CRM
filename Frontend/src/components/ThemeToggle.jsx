@@ -5,23 +5,28 @@ import { useMantineColorScheme } from '@mantine/core';
 
 export default function ThemeToggle() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const [dark, setDark] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return document.documentElement.classList.contains('dark');
-    }
-    return false;
-  });
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
     const isDark = colorScheme === 'dark';
+
     if (isDark) {
       root.classList.add('dark');
+      root.setAttribute('data-theme', 'dark');
     } else {
       root.classList.remove('dark');
+      root.setAttribute('data-theme', 'light');
     }
-    setDark(isDark);
   }, [colorScheme]);
+
+  if (!mounted) return null;
+
+  const isDark = colorScheme === 'dark';
 
   return (
     <Button
@@ -29,12 +34,12 @@ export default function ThemeToggle() {
       size="icon"
       onClick={() => toggleColorScheme()}
       aria-label="Toggle theme"
-      className="text-foreground hover:text-foreground/80"
+      className="text-foreground hover:bg-accent"
     >
-      {dark ? (
+      {isDark ? (
         <Sun className="h-5 w-5 text-white" />
       ) : (
-        <Moon className="h-5 w-5 text-black" />
+        <Moon className="h-5 w-5 text-slate-700" />
       )}
     </Button>
   );

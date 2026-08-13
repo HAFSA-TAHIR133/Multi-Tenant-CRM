@@ -1,13 +1,26 @@
-// src/components/ui/DocumentPreviewModal.jsx
-import React from "react";
-import { X, Download, ExternalLink } from "lucide-react";
+import React, { useState } from "react";
+import { X, Download, ExternalLink, Loader2 } from "lucide-react";
 
 export default function DocumentPreviewModal({ isOpen, onClose, document, onDownload }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
   if (!isOpen || !document) return null;
 
   const { url, name } = document;
   const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(name || url);
   const isPdf = /\.pdf$/i.test(name || url);
+
+  const handleDownload = async () => {
+    if (isDownloading || !onDownload) return;
+    try {
+      setIsDownloading(true);
+      await onDownload(url, name);
+    } catch (error) {
+      console.error("Download failed:", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -19,13 +32,22 @@ export default function DocumentPreviewModal({ isOpen, onClose, document, onDown
             {name || "Document Preview"}
           </h3>
           <div className="flex items-center gap-2">
+            {/* Header Download Button with Green Loader */}
             <button
-              onClick={() => onDownload(url, name)}
-              className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Download File"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className={`p-1.5 text-slate-500 hover:text-indigo-600 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${
+                isDownloading ? "opacity-75 cursor-not-allowed" : ""
+              }`}
+              title={isDownloading ? "Downloading..." : "Download File"}
             >
-              <Download className="h-4 w-4" />
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
             </button>
+
             <a
               href={url}
               target="_blank"
@@ -35,6 +57,8 @@ export default function DocumentPreviewModal({ isOpen, onClose, document, onDown
             >
               <ExternalLink className="h-4 w-4" />
             </a>
+
+            {/* Close Button */}
             <button
               onClick={onClose}
               className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -62,10 +86,20 @@ export default function DocumentPreviewModal({ isOpen, onClose, document, onDown
             <div className="text-center p-8 text-slate-500">
               <p className="text-sm">Preview is not available for this file type.</p>
               <button
-                onClick={() => onDownload(url, name)}
-                className="mt-3 inline-flex items-center gap-2 text-xs text-indigo-600 hover:underline font-medium"
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="mt-3 inline-flex items-center gap-2 text-xs text-indigo-600 hover:underline font-medium disabled:opacity-50"
               >
-                <Download className="h-3.5 w-3.5" /> Download file instead
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 text-emerald-600 animate-spin" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-3.5 w-3.5" /> Download file instead
+                  </>
+                )}
               </button>
             </div>
           )}

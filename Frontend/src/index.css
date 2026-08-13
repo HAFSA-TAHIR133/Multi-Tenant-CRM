@@ -3,7 +3,8 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
-@custom-variant dark (&:is(.dark *));
+/* Updated selector to handle .dark directly on <html> or nested elements */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
     --font-heading: var(--font-sans);
@@ -120,11 +121,11 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
     @apply bg-background text-foreground;
-    }
+  }
   html {
     @apply font-sans;
-    }
+  }
 }

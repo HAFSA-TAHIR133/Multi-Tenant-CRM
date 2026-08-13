@@ -1,29 +1,35 @@
-import { NavLink } from "react-router-dom";
-
+import { Link, useLocation } from "react-router-dom";
 import {
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuButton,
 } from "@/components/ui/sidebar";
 
-export function NavMain({ items }) {
+export function NavMain({ items = [] }) {
+  const location = useLocation();
+
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
-
       <SidebarMenu>
         {items.map((item) => {
-          const Icon = item.icon;
+          const isActive =
+            location.pathname === item.url ||
+            (item.url !== "/" && location.pathname.startsWith(`${item.url}/`));
+
+          const ItemIcon = item.icon;
 
           return (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
-                render={<NavLink to={item.url} />}
+                asChild
+                isActive={isActive}
+                className={isActive ? "bg-slate-700 dark:bg-slate-400 font-medium" : ""}
               >
-                <Icon className="size-4" />
-                <span>{item.title}</span>
+                <Link to={item.url} className="flex items-center gap-3 w-full">
+                  {ItemIcon && <ItemIcon className="w-4 h-4 shrink-0" />}
+                  <span className="text-sm truncate">{item.title}</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           );

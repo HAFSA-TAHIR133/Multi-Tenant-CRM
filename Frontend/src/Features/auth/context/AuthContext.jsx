@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       inactivityTimerRef.current = setTimeout(() => {
-        authApi.logout();
+        logout(); // FIXED: Triggers full context & local storage cleanup
       }, INACTIVITY_TIMEOUT);
     };
 
@@ -184,6 +184,7 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(
     () => ({
       user,
+      setUser, // FIXED: Now exposed for Profile and Avatar state updates
       accessToken,
       activeTenant,
       isAuthenticated: Boolean(user && accessToken),

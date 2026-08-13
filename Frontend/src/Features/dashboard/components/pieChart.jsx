@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -7,33 +7,15 @@ import {
   Tooltip,
 } from 'recharts';
 
-// Custom status color mapping
-const STATUS_COLOR_MAP = {
-  open: '#000000',        // Black
-  active: '#000000',      // Black
-  close: '#cbd5e1',       // Light Grey
-  closed: '#cbd5e1',      // Light Grey
-  pending: '#94a3b8',     // Grey (Slate-400)
-  'in progress': '#64748b', // Medium Grey (Slate-500)
-};
-
-// Fallback palette consisting purely of grey tones
-const DEFAULT_COLORS = ['#000000', '#94a3b8', '#cbd5e1', '#64748b', '#e2e8f0'];
-
-const defaultData = [
-  { label: 'Active', value: 0, color: '#000000' },
-  { label: 'Pending', value: 0, color: '#94a3b8' },
-];
-
 const CustomTooltip = ({ active, payload, valueLabel = 'items' }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     if (data.isPlaceholder) return null;
 
     return (
-      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
         <div className="mb-0.5 flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: data.color }} />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: data.color }} />
           <span className="font-semibold text-slate-900 dark:text-slate-100">{data.label}</span>
         </div>
         <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -51,25 +33,66 @@ export default function PieChart({
   valueLabel = 'items',
   centerLabel = 'Total',
 }) {
+  const [isDark, setIsDark] = useState(false);
+
+  // Sync state with html.dark class
+  useEffect(() => {
+    const checkDark = () => setIsDark(document.documentElement.classList.contains('dark'));
+    checkDark();
+
+    const observer = new MutationObserver(checkDark);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Theme-aware status colors
+  const statusColors = useMemo(() => {
+    const completedColor = isDark ? '#ffffff' : '#09090b'; // White in Dark, Black in Light
+    const pendingColor = '#475569';                        // Dark Grey in both Light & Dark
+    const overdueColor = '#ef4444';                        // Red in both Light & Dark
+
+    return {
+      // Completed statuses
+      completed: completedColor,
+      done: completedColor,
+      active: completedColor,
+      open: completedColor,
+
+      // Pending statuses
+      pending: pendingColor,
+      'in progress': pendingColor,
+      inactive: pendingColor,
+      close: pendingColor,
+      closed: pendingColor,
+
+      // Overdue statuses
+      overdue: overdueColor,
+    };
+  }, [isDark]);
+
   const rawData = useMemo(() => {
-    if (!Array.isArray(data) || !data.length) return defaultData;
+    const fallbackData = [
+      { label: 'Completed', value: 0, color: isDark ? '#ffffff' : '#09090b' },
+      { label: 'Pending', value: 0, color: '#475569' },
+      { label: 'Overdue', value: 0, color: '#ef4444' },
+    ];
+
+    if (!Array.isArray(data) || !data.length) return fallbackData;
 
     return data.map((item, index) => {
       let label = item.label || item.status || item.name || `Category ${index + 1}`;
       const value = Number(item.value ?? item.count ?? 0);
-
       const lowerKey = label.toLowerCase().trim();
 
-      // Normalize 'close' or 'closed' to 'Closed'
       if (lowerKey === 'close' || lowerKey === 'closed') {
         label = 'Closed';
       }
 
-      // Assign custom color (Check map first, then item.color, then default grey palette)
+      // Check statusColors map first so backend colors don't override the required theme specification
       const color =
-        STATUS_COLOR_MAP[lowerKey] ||
+        statusColors[lowerKey] ||
         item.color ||
-        DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+        (isDark ? '#ffffff' : '#09090b');
 
       return {
         id: item.id || `pie-item-${lowerKey}-${index}`,
@@ -78,29 +101,24 @@ export default function PieChart({
         color,
       };
     });
-  }, [data]);
+  }, [data, isDark, statusColors]);
 
-  const total = useMemo(() => {
-    return rawData.reduce((acc, curr) => acc + curr.value, 0);
-  }, [rawData]);
+  const total = useMemo(() => rawData.reduce((acc, curr) => acc + curr.value, 0), [rawData]);
 
   const chartData = useMemo(() => {
     if (total === 0) {
-      return [{ id: 'placeholder', label: 'No Data', value: 1, color: '#f1f5f9', isPlaceholder: true }];
+      return [{ id: 'placeholder', label: 'No Data', value: 1, color: isDark ? '#334155' : '#e2e8f0', isPlaceholder: true }];
     }
     return rawData.filter((item) => item.value > 0);
-  }, [rawData, total]);
+  }, [rawData, total, isDark]);
 
   return (
     <div className="flex min-h-[260px] w-full flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      {/* Title positioned cleanly at the top */}
       <div className="w-full">
         <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">{title}</h3>
       </div>
 
-      {/* Chart and Legend area centered below the title */}
       <div className="flex items-center justify-center gap-6 my-auto">
-        {/* Scaled down pie container (110px width/height) */}
         <div className="flex h-[110px] w-[110px] items-center justify-center">
           <RechartsPieChart width={110} height={110}>
             <Tooltip content={<CustomTooltip valueLabel={valueLabel} />} />
@@ -139,14 +157,13 @@ export default function PieChart({
           </RechartsPieChart>
         </div>
 
-        {/* Legend */}
         <div className="flex flex-col justify-center gap-2">
           {rawData.map((item, index) => {
             const percentage = total ? ((item.value / total) * 100).toFixed(1) : '0.0';
 
             return (
               <div key={`legend-${item.id}-${index}`} className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{item.label}</span>
                   <span className="text-[10px] font-medium text-slate-400">

@@ -16,6 +16,9 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // 1. Manage the active timeframe state (Match backend options)
+  const [selectedPeriod, setSelectedPeriod] = useState("This Week");
+
   useEffect(() => {
     if (!user) return;
 
@@ -26,9 +29,10 @@ export default function UserDashboard() {
       setError("");
 
       try {
+        // 2. Pass selectedPeriod to getUserLineChart
         const [statsRes, lineRes, statusRes] = await Promise.all([
           dashboardApi.getUserStats(),
-          dashboardApi.getUserLineChart(),
+          dashboardApi.getUserLineChart(selectedPeriod),
           dashboardApi.getUserStatusChart(),
         ]);
 
@@ -60,7 +64,7 @@ export default function UserDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, selectedPeriod]); // 3. Add selectedPeriod as a dependency
 
   const cards = [
     {
@@ -126,7 +130,10 @@ export default function UserDashboard() {
                 data={lineData}
                 xKey="day"
                 yKey="tasks"
-                dropdownOptions={["This Week", "Last 7 Days", "Last 14 Days"]}
+                // 4. Match the exact filter values your backend supports
+                dropdownOptions={["This Week", "Last 1 Week", "Last 14 Days", "Last 1 Month"]}
+                // 5. Connect timeframe change to state update
+                onTimeframeChange={(newTimeframe) => setSelectedPeriod(newTimeframe)}
               />
             </div>
 

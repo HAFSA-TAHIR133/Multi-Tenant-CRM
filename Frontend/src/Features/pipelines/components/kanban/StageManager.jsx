@@ -1,12 +1,38 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import {Modal,TextInput,Textarea,Group,Button,Stack,Text,Paper,ActionIcon,Tooltip,Box,Divider,
-  Popover,ColorPicker,
+import {
+  Modal,
+  TextInput,
+  Textarea,
+  Group,
+  Button,
+  Stack,
+  Text,
+  Paper,
+  ActionIcon,
+  Tooltip,
+  Box,
+  Divider,
+  Popover,
+  ColorPicker,
 } from '@mantine/core';
-import {IconPencil,IconTrash,IconGripVertical,IconX,IconPalette,
+import {
+  IconPencil,
+  IconTrash,
+  IconGripVertical,
+  IconPalette,
 } from '@tabler/icons-react';
-import {DndContext,PointerSensor,useSensor,useSensors,closestCenter,
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
 } from '@dnd-kit/core';
-import {SortableContext,arrayMove,verticalListSortingStrategy,useSortable,
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+  useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
@@ -26,21 +52,6 @@ function isLightColor(hex) {
   const b = parseInt(c.substring(4, 6), 16);
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6;
 }
-const blackBtnStyle = {
-  root: {
-    backgroundColor: '#111111',
-    color: '#ffffff',
-    border: '1px solid #111111',
-    transition: "all 0.3s ease",
-    fontWeight: 500,
-    '&:hover': {
-      backgroundColor: '#ffffff',
-      color: '#111111',
-      border: '1px solid #111111',
-    },
-  },
-};
-
 
 function DraggableStageCard({ stage, onEdit, onDelete, isDeleting, isEditingThis }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -50,27 +61,26 @@ function DraggableStageCard({ stage, onEdit, onDelete, isDeleting, isEditingThis
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    border: isEditingThis ? '1.5px solid #3b82f6' : '1px solid #e2e8f0',
-    background: isEditingThis ? '#f0f9ff' : '#fff',
-    borderRadius: 8,
-    boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
+    boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
     borderLeft: `4px solid ${stage.color || '#111111'}`,
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`rounded-lg border transition-colors ${
+        isEditingThis
+          ? 'border-blue-500/80 bg-blue-50/20 dark:bg-blue-950/20'
+          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+      }`}
+    >
       <Group justify="space-between" wrap="nowrap" px="sm" py="xs">
         <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
           <span
             {...attributes}
             {...listeners}
-            style={{
-              cursor: 'grab',
-              display: 'flex',
-              alignItems: 'center',
-              color: '#94a3b8',
-              flexShrink: 0,
-            }}
+            className="cursor-grab flex items-center text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 flex-shrink-0 touch-none"
           >
             <IconGripVertical size={15} />
           </span>
@@ -87,16 +97,16 @@ function DraggableStageCard({ stage, onEdit, onDelete, isDeleting, isEditingThis
 
           <div style={{ minWidth: 0, flex: 1 }}>
             <Group gap={6} align="center">
-              <Text fw={600} size="sm" c="dark" lineClamp={1}>
+              <Text fw={600} size="sm" className="text-slate-900 dark:text-slate-100" lineClamp={1}>
                 {stage.name}
               </Text>
               {isEditingThis && (
-                <Text size="10px" fw={700} c="blue" style={{ textTransform: 'uppercase' }}>
+                <Text size="10px" fw={700} className="text-blue-600 dark:text-blue-400 uppercase">
                   (Editing)
                 </Text>
               )}
             </Group>
-            <Text size="xs" c="dimmed" lineClamp={1}>
+            <Text size="xs" className="text-slate-500 dark:text-slate-400" lineClamp={1}>
               {stage.description || 'No description'} · Order {stage.order ?? '-'}
             </Text>
           </div>
@@ -105,10 +115,11 @@ function DraggableStageCard({ stage, onEdit, onDelete, isDeleting, isEditingThis
         <Group gap={4} wrap="nowrap" flex="0 0 auto">
           <Tooltip label="Edit" withArrow position="top">
             <ActionIcon
-              variant={isEditingThis ? 'filled' : 'subtle'}
-              color={isEditingThis ? 'blue' : 'dark'}
+              variant="subtle"
+              color="gray"
               onClick={onEdit}
               size="sm"
+              className="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <IconPencil size={14} />
             </ActionIcon>
@@ -120,6 +131,7 @@ function DraggableStageCard({ stage, onEdit, onDelete, isDeleting, isEditingThis
               onClick={onDelete}
               size="sm"
               loading={isDeleting}
+              className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
             >
               <IconTrash size={14} />
             </ActionIcon>
@@ -157,12 +169,12 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
 
   return (
     <Stack gap={6}>
-      <Text size="xs" fw={500}>
+      <Text size="xs" fw={500} className="text-slate-800 dark:text-slate-200">
         Stage Color
       </Text>
 
       <Group gap="xs" align="center">
-        {/*  Spectrum Popover Trigger */}
+        {/* Spectrum Popover Trigger */}
         <Popover
           opened={popoverOpened}
           onChange={setPopoverOpened}
@@ -170,6 +182,7 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
           position="bottom-start"
           withArrow
           shadow="md"
+          className="dark:[&_.mantine-Popover-dropdown]:bg-slate-900 dark:[&_.mantine-Popover-dropdown]:border-slate-800"
         >
           <Popover.Target>
             <Tooltip label="Click to open color spectrum" withArrow position="top">
@@ -177,18 +190,16 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
                 type="button"
                 onClick={() => !disabled && setPopoverOpened((o) => !o)}
                 disabled={disabled}
+                className="border border-slate-300 dark:border-slate-700 shadow-sm transition-all"
                 style={{
                   width: 36,
                   height: 36,
                   borderRadius: 8,
                   backgroundColor: current,
-                  border: '1px solid #cbd5e1',
                   cursor: disabled ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                 }}
               >
                 <IconPalette
@@ -216,9 +227,9 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
               />
               <Button
                 size="compact-xs"
-                variant="light"
+                variant="filled"
                 fullWidth
-                style={blackBtnStyle}
+                className="bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
                 onClick={() => setPopoverOpened(false)}
               >
                 Done
@@ -235,6 +246,7 @@ function InteractiveColorPicker({ value, onChange, disabled }) {
           disabled={disabled}
           size="xs"
           placeholder="#000000"
+          className="dark:[&_input]:bg-slate-950 dark:[&_input]:text-white dark:[&_input]:border-slate-800"
           styles={{
             root: { flex: 1, maxWidth: 110 },
             input: {
@@ -419,32 +431,31 @@ export default function StageManager({
         opened={opened}
         onClose={onClose}
         size="md"
-        title="Manage Pipeline Stages"
+        title={
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-base text-slate-900 dark:text-slate-100">
+              Manage Pipeline Stages
+            </span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">
+              {editingStage
+                ? `Edit the ${editingStage.name} stage`
+                : 'Add new stages to customize your pipeline workflow.'}
+            </span>
+          </div>
+        }
         centered
         styles={{
           content: { borderRadius: 12 },
-          header: { borderBottom: '1px solid #f1f5f9' },
         }}
+        className="dark:[&_.mantine-Modal-content]:bg-slate-900 dark:[&_.mantine-Modal-content]:border dark:[&_.mantine-Modal-content]:border-slate-800 dark:[&_.mantine-Modal-header]:bg-slate-900 dark:[&_.mantine-Modal-header]:border-b dark:[&_.mantine-Modal-header]:border-slate-800"
       >
-        <Stack gap="md">
-          <Paper withBorder p="sm" radius="md" style={{ backgroundColor: '#f8fafc' }}>
-            <Group justify="space-between" mb={8}>
-              <Text fw={600} size="xs" c="dark">
-                {editingStage ? `Edit "${editingStage.name}"` : 'Add New Stage'}
-              </Text>
-              {editingStage && (
-                <Button
-                  variant="subtle"
-                  color="gray"
-                  size="compact-xs"
-                  leftSection={<IconX size={12} />}
-                  onClick={resetForm}
-                >
-                  Cancel Edit
-                </Button>
-              )}
-            </Group>
-
+        <Stack gap="md" className="mt-1">
+          <Paper
+            withBorder
+            p="sm"
+            radius="md"
+            className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+          >
             <Stack gap="xs">
               <TextInput
                 label="Stage Name"
@@ -457,11 +468,12 @@ export default function StageManager({
                 }}
                 required
                 disabled={saving}
+                className="dark:[&_label]:text-slate-200 dark:[&_input]:bg-slate-900 dark:[&_input]:text-white dark:[&_input]:border-slate-800"
               />
 
               <Textarea
                 label="Description"
-                placeholder="Optional stage description"
+                placeholder="Stage description"
                 size="xs"
                 value={form.description}
                 onChange={(e) => {
@@ -470,6 +482,7 @@ export default function StageManager({
                 }}
                 disabled={saving}
                 rows={2}
+                className="dark:[&_label]:text-slate-200 dark:[&_textarea]:bg-slate-900 dark:[&_textarea]:text-white dark:[&_textarea]:border-slate-800"
               />
 
               <InteractiveColorPicker
@@ -479,22 +492,31 @@ export default function StageManager({
               />
 
               <Group justify="flex-end" mt={4}>
-                <Button size="xs" onClick={saveStage} loading={saving} styles={blackBtnStyle}>
+                <Button
+                  size="xs"
+                  onClick={saveStage}
+                  loading={saving}
+                  className="!bg-black !text-white hover:!bg-neutral-800 dark:!bg-white dark:!text-black dark:hover:!bg-neutral-200 cursor-pointer transition-colors"
+                >
                   {editingStage ? 'Update Stage' : 'Add Stage'}
                 </Button>
               </Group>
             </Stack>
           </Paper>
 
-          <Divider label="Existing Stages" labelPosition="center" />
+          <Divider
+            label="Existing Stages"
+            labelPosition="center"
+            className="dark:[&_span]:text-slate-400 dark:border-slate-800"
+          />
 
           <Stack gap="xs">
             {!pipelineId ? (
-              <Text size="xs" c="dimmed" ta="center">
+              <Text size="xs" ta="center" className="text-slate-500 dark:text-slate-400">
                 Select a pipeline to view stages.
               </Text>
             ) : localStages.length === 0 ? (
-              <Text size="xs" c="dimmed" ta="center">
+              <Text size="xs" ta="center" className="text-slate-500 dark:text-slate-400">
                 No stages added yet. Use the form above to create your first stage.
               </Text>
             ) : (
@@ -526,15 +548,20 @@ export default function StageManager({
       <Modal
         opened={!!confirmDelete && opened}
         onClose={() => setConfirmDelete(null)}
-        title="Delete Stage?"
+        title={
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            Delete Stage?
+          </span>
+        }
         centered
         size="xs"
         styles={{ content: { borderRadius: 12 } }}
+        className="dark:[&_.mantine-Modal-content]:bg-slate-900 dark:[&_.mantine-Modal-content]:border dark:[&_.mantine-Modal-content]:border-slate-800 dark:[&_.mantine-Modal-header]:bg-slate-900"
       >
         <Stack gap="md">
-          <Text size="sm" c="dimmed">
+          <Text size="sm" className="text-slate-500 dark:text-slate-400">
             Are you sure you want to delete{' '}
-            <Text component="span" fw={600} c="dark">
+            <Text component="span" fw={600} className="text-slate-900 dark:text-slate-100">
               "{confirmDelete?.name}"
             </Text>
             ?
@@ -545,6 +572,7 @@ export default function StageManager({
               onClick={() => setConfirmDelete(null)}
               disabled={deletingId === confirmDelete?.id}
               size="xs"
+              className="dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
             >
               Cancel
             </Button>

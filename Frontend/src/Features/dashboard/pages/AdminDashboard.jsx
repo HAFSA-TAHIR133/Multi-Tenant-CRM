@@ -12,8 +12,24 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [lineData, setLineData] = useState([]);
   const [allLeads, setAllLeads] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState('This Week');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Fetch line chart data dynamically based on the selected period
+  const fetchLineChart = async (period) => {
+    try {
+      const lineRes = await dashboardApi.getAdminLineChart({ period });
+      const rawLineData = Array.isArray(lineRes)
+        ? lineRes
+        : Array.isArray(lineRes?.data)
+        ? lineRes.data
+        : [];
+      setLineData(rawLineData);
+    } catch (err) {
+      console.error('Failed to load line chart', err);
+    }
+  };
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -22,17 +38,22 @@ export default function AdminDashboard() {
 
       try {
         const statsRes = await dashboardApi.getAdminStats();
-        const lineRes = await dashboardApi.getAdminLineChart();
         const leadsRes = await leadsApi.getAll();
 
         setStats(statsRes?.data || statsRes || {});
-        setLineData(lineRes?.data || lineRes?.items || lineRes || []);
 
         // Normalize leads data
-        const rawLeads = Array.isArray(leadsRes) ? leadsRes :
-                         Array.isArray(leadsRes?.data) ? leadsRes.data :
-                         Array.isArray(leadsRes?.items) ? leadsRes.items : [];
+        const rawLeads = Array.isArray(leadsRes)
+          ? leadsRes
+          : Array.isArray(leadsRes?.data)
+          ? leadsRes.data
+          : Array.isArray(leadsRes?.items)
+          ? leadsRes.items
+          : [];
         setAllLeads(rawLeads);
+
+        // Fetch line chart for the initial period
+        await fetchLineChart(selectedPeriod);
       } catch (err) {
         setError(err.message || 'Failed to load dashboard');
       } finally {
@@ -42,6 +63,11 @@ export default function AdminDashboard() {
 
     loadDashboard();
   }, []);
+
+  const handlePeriodChange = (period) => {
+    setSelectedPeriod(period);
+    fetchLineChart(period);
+  };
 
   // Compute status distribution from all leads (including closed)
   const statusData = useMemo(() => {
@@ -54,7 +80,10 @@ export default function AdminDashboard() {
     });
 
     return Object.entries(statusCounts).map(([status, count]) => ({
-      label: status === 'close' || status === 'closed' ? 'Closed' : status.charAt(0).toUpperCase() + status.slice(1),
+      label:
+        status === 'close' || status === 'closed'
+          ? 'Closed'
+          : status.charAt(0).toUpperCase() + status.slice(1),
       value: count,
       status,
     }));
@@ -96,14 +125,15 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2 flex">
               <TenantsLineGraph
-                title="Pipeline Weekly Revenue"
-                valueLabel="Revenue"
-                data={lineData}
-                xKey="day"
-                yKey="revenue"
-                isCurrency={true}
-                dropdownOptions={['This Week', 'Last 7 Days', 'Last 14 Days']}
-                />
+              title="Pipeline Revenue"
+              valueLabel="Revenue"
+              data={lineData}
+              xKey="day"
+              yKey="revenue"
+              isCurrency={true}
+              dropdownOptions={['This Week', 'Last 7 Days', 'Last 1 Month']}
+              onTimeframeChange={handlePeriodChange}
+            />
             </div>
             <div className="lg:col-span-1 flex">
               <PieChart

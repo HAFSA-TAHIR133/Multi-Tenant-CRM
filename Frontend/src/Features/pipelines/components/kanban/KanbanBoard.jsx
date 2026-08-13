@@ -68,37 +68,23 @@ function DraggableStage({
       }}
     >
       <div
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex flex-col"
         style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: 8,
-          display: 'flex',
-          flexDirection: 'column',
           maxHeight: 'calc(100vh - 220px)',
         }}
       >
         {/* ---- header ---- */}
         <div
+          className="border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5"
           style={{
             padding: '10px 10px 8px',
-            borderBottom: '1px solid #f1f5f9',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
           }}
         >
           {/* drag handle */}
           <span
             {...attributes}
             {...listeners}
-            style={{
-              cursor: 'grab',
-              display: 'flex',
-              alignItems: 'center',
-              color: '#cbd5e1',
-              flexShrink: 0,
-              touchAction: 'none',
-            }}
+            className="text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 cursor-grab flex items-center flex-shrink-0 touch-none"
           >
             <IconGripVertical size={14} />
           </span>
@@ -116,31 +102,14 @@ function DraggableStage({
 
           {/* name */}
           <span
-            style={{
-              fontWeight: 600,
-              fontSize: 13,
-              color: '#1e293b',
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
+            className="font-semibold text-xs text-slate-800 dark:text-slate-100 flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
           >
             {stage.name}
           </span>
 
           {/* count badge */}
           <span
-            style={{
-              fontSize: 11,
-              fontWeight: 500,
-              color: '#64748b',
-              backgroundColor: '#f1f5f9',
-              padding: '1px 8px',
-              borderRadius: 10,
-              lineHeight: '18px',
-              flexShrink: 0,
-            }}
+            className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full flex-shrink-0 leading-4"
           >
             {leads?.length || 0}
           </span>
@@ -152,7 +121,7 @@ function DraggableStage({
                 <ActionIcon
                   variant="subtle"
                   size="xs"
-                  color="gray"
+                  className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
                   onClick={() => onEditStage?.(stage)}
                 >
                   <IconPencil size={13} />
@@ -162,7 +131,7 @@ function DraggableStage({
                 <ActionIcon
                   variant="subtle"
                   size="xs"
-                  color="gray"
+                  className="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400"
                   onClick={() => onDeleteStage?.(stage)}
                 >
                   <IconTrash size={13} />
@@ -191,7 +160,7 @@ function DraggableStage({
 
           {(!leads || leads.length === 0) && (
             <div style={{ padding: '24px 0', textAlign: 'center' }}>
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>
+              <span className="text-xs text-slate-400 dark:text-slate-500">
                 No leads
               </span>
             </div>
@@ -218,39 +187,19 @@ function DraggableLeadCard({ lead, onClick }) {
       {...attributes}
       {...listeners}
       onClick={onClick}
+      className="bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-md p-3 cursor-grab touch-none transition-colors"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.4 : 1,
-        cursor: 'grab',
-        padding: '10px 12px',
-        backgroundColor: '#fff',
-        border: '1px solid #e2e8f0',
-        borderRadius: 6,
-        touchAction: 'none',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#cbd5e1';
-        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = '#e2e8f0';
-        e.currentTarget.style.boxShadow = 'none';
       }}
     >
       <div
-        style={{
-          fontWeight: 600,
-          fontSize: 13,
-          color: '#1e293b',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
+        className="font-semibold text-xs text-slate-800 dark:text-slate-100 overflow-hidden text-ellipsis whitespace-nowrap"
       >
         {lead.contactName || lead.title || `${lead.companyName || 'Company'} – Contact`}
       </div>
-      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
         {lead.companyName || 'No company'}
         {lead.value ? ` · $${lead.value}` : ''}
       </div>
@@ -372,7 +321,6 @@ export default function KanbanBoard({
         const oLead = localLeads.find((l) => String(l.id) === oLId);
         if (!aLead || !oLead) return;
 
-
         if (String(aLead.stageId) === String(oLead.stageId)) {
           const stageLeads = [...(grouped[aLead.stageId] || [])];
           const oi = stageLeads.findIndex((l) => String(l.id) === lId);
@@ -434,12 +382,7 @@ export default function KanbanBoard({
   return (
     <>
       <div
-        style={{
-          backgroundColor: '#f8fafc',
-          borderRadius: 10,
-          padding: 12,
-          minHeight: 'calc(100vh - 240px)',
-        }}
+        className="bg-slate-100/70 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 rounded-xl p-3 min-h-[calc(100vh-240px)] transition-colors"
       >
         <DndContext
           sensors={sensors}
@@ -482,15 +425,22 @@ export default function KanbanBoard({
       <Modal
         opened={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
-        title="Delete Stage?"
+        title={
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            Delete Stage?
+          </span>
+        }
         centered
         size="xs"
-        styles={{ content: { borderRadius: 12 } }}
+        styles={{
+          content: { borderRadius: 12 },
+        }}
+        className="dark:[&_.mantine-Paper-root]:bg-slate-900 dark:[&_.mantine-Paper-root]:border-slate-800"
       >
         <Stack gap="md">
-          <Text size="sm" c="dimmed">
+          <Text size="sm" className="text-slate-500 dark:text-slate-400">
             This cannot be undone. The stage{' '}
-            <Text component="span" fw={600} c="dark">
+            <Text component="span" fw={600} className="text-slate-900 dark:text-slate-100">
               {deleteConfirm?.name}
             </Text>{' '}
             and all its data will be permanently deleted.
@@ -501,6 +451,7 @@ export default function KanbanBoard({
               onClick={() => setDeleteConfirm(null)}
               disabled={deletingStageId === deleteConfirm?.id}
               size="xs"
+              className="dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
             >
               Cancel
             </Button>

@@ -1,21 +1,15 @@
-// src/components/layout/app-sidebar.jsx
-
 "use client";
 
 import { NavMain } from "@/components/layout/nav-main";
-import NavUser from "@/components/layout/nav-user";
 import { TeamSwitcher } from "@/components/layout/team-switcher";
 import { useAuth } from "@/Features/auth/context/AuthContext";
 import { ROLES } from "@/constants/roles";
-
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
-
 import {
   LayoutDashboard,
   Building2,
@@ -76,12 +70,12 @@ const data = {
       },
       {
         title: "Users",
-        url: "/users",
+        url: "/admin/users",
         icon: Users,
       },
       {
         title: "Tasks",
-        url: "/tasks",
+        url: "/admin/tasks",
         icon: ListTodo,
       },
     ],
@@ -91,23 +85,21 @@ const data = {
         url: "/user/dashboard",
         icon: LayoutDashboard,
       },
-      
       {
-         title: "Leads",
-         url: "/user/leads",
-         icon: ListTodo,
-       },
-       {
-          title: "User",
-         url: "/user/users",
-         icon: Users,
-       },
-       {
+        title: "Leads",
+        url: "/user/leads",
+        icon: ListTodo,
+      },
+      {
+        title: "Users",
+        url: "/user/users",
+        icon: Users,
+      },
+      {
         title: "Tasks",
         url: "/user/tasks",
         icon: ListTodo,
-      }
-       
+      },
     ],
   },
 };
@@ -115,7 +107,6 @@ const data = {
 export default function AppSidebar(props) {
   const { user } = useAuth();
   const role = user?.role;
-
   const navMain = data.navMain[role] || [];
 
   return (
@@ -123,15 +114,9 @@ export default function AppSidebar(props) {
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
-
       <SidebarContent>
         <NavMain items={navMain} />
       </SidebarContent>
-
-      <SidebarFooter>
-        <NavUser />
-      </SidebarFooter>
-
       <SidebarRail />
     </Sidebar>
   );

@@ -21,11 +21,17 @@ import {
   FieldError,
 } from '@/components/ui/field';
 
-// Dynamic Zod Schema Generator
+// Dynamic Zod Schema with explicit validation messages for empty & invalid states
 const getFormSchema = (isEdit = false) =>
   z.object({
-    name: z.string().min(2, 'Name must be at least 2 characters.'),
-    email: z.string().email('Please enter a valid email address.'),
+    name: z
+      .string()
+      .min(1, 'Name is required.')
+      .min(2, 'Name must be at least 2 characters.'),
+    email: z
+      .string()
+      .min(1, 'Email is required.')
+      .email('Please enter a valid email address.'),
     password: isEdit
       ? z
           .string()
@@ -33,8 +39,11 @@ const getFormSchema = (isEdit = false) =>
           .refine((val) => !val || val.length >= 6, {
             message: 'Password must be at least 6 characters if provided.',
           })
-      : z.string().min(6, 'Password must be at least 6 characters.'),
-    role: z.coerce.number(),
+      : z
+          .string()
+          .min(1, 'Password is required.')
+          .min(6, 'Password must be at least 6 characters.'),
+    role: z.coerce.number({ invalid_type_error: 'Role is required.' }),
     isActive: z.boolean(),
   });
 
@@ -50,7 +59,7 @@ export default function TenantUsers() {
   const [formLoading, setFormLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
 
-  // React Hook Form Configuration
+  // React Hook Form setup
   const form = useForm({
     resolver: zodResolver(getFormSchema(!!editUser)),
     defaultValues: {
@@ -148,8 +157,8 @@ export default function TenantUsers() {
     setFormLoading(true);
     try {
       const payload = {
-        name: data.data ? data.data.name : data.name,
-        email: data.data ? data.data.email : data.email,
+        name: data.name.trim(),
+        email: data.email.trim(),
         role: Number(data.role),
         isActive: data.isActive,
         ...(data.password ? { password: data.password } : {}),
@@ -160,7 +169,6 @@ export default function TenantUsers() {
       } else {
         await usersApi.createUser({
           ...payload,
-          password: data.password,
           tenantId: tenantId,
         });
       }
@@ -273,21 +281,24 @@ export default function TenantUsers() {
         onOpenChange={handleOpenChange}
         title={editUser ? 'Edit User' : 'Add User'}
         description={
-          editUser? 'Update user details, credentials, or access permissions.'
+          editUser
+            ? 'Update user details, credentials, or access permissions.'
             : 'Create a new user account for your tenant.'
         }
         submitLabel={editUser ? 'Update User' : 'Create User'}
         onSubmit={form.handleSubmit(handleFormSubmit)}
         loading={formLoading}
       >
-        <FieldGroup className="space-y-4">
+        <FieldGroup className="flex flex-col gap-3">
           {/* Name Field */}
           <Controller
             name="name"
             control={form.control}
             render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="tenant-user-name">Name</FieldLabel>
+              <Field data-invalid={fieldState.invalid} className="gap-1">
+                <FieldLabel htmlFor="tenant-user-name">
+                  Name <span className="text-destructive">*</span>
+                </FieldLabel>
                 <Input
                   {...field}
                   id="tenant-user-name"
@@ -305,8 +316,10 @@ export default function TenantUsers() {
             name="email"
             control={form.control}
             render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="tenant-user-email">Email</FieldLabel>
+              <Field data-invalid={fieldState.invalid} className="gap-1">
+                <FieldLabel htmlFor="tenant-user-email">
+                  Email <span className="text-destructive">*</span>
+                </FieldLabel>
                 <Input
                   {...field}
                   id="tenant-user-email"
@@ -325,9 +338,9 @@ export default function TenantUsers() {
             name="password"
             control={form.control}
             render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
+              <Field data-invalid={fieldState.invalid} className="gap-1">
                 <FieldLabel htmlFor="tenant-user-password">
-                  Password{!editUser ? ' *' : ''}
+                  Password{!editUser && <span className="text-destructive"> *</span>}
                 </FieldLabel>
                 <Input
                   {...field}
@@ -347,14 +360,16 @@ export default function TenantUsers() {
             name="role"
             control={form.control}
             render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="tenant-user-role">Role</FieldLabel>
+              <Field data-invalid={fieldState.invalid} className="gap-1">
+                <FieldLabel htmlFor="tenant-user-role">
+                  Role <span className="text-destructive">*</span>
+                </FieldLabel>
                 <select
                   {...field}
                   id="tenant-user-role"
                   aria-invalid={fieldState.invalid}
                   onChange={(e) => field.onChange(Number(e.target.value))}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value={1}>User</option>
                   <option value={2}>Admin</option>
@@ -370,14 +385,16 @@ export default function TenantUsers() {
             name="isActive"
             control={form.control}
             render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="tenant-user-status">Status</FieldLabel>
+              <Field data-invalid={fieldState.invalid} className="gap-1">
+                <FieldLabel htmlFor="tenant-user-status">
+                  Status <span className="text-destructive">*</span>
+                </FieldLabel>
                 <select
                   id="tenant-user-status"
                   value={String(field.value)}
                   aria-invalid={fieldState.invalid}
                   onChange={(e) => field.onChange(e.target.value === 'true')}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="true">Active</option>
                   <option value="false">Deactivate</option>

@@ -18,14 +18,18 @@ export const getLeadColumns = ({
     accessorKey: 'contactName',
     header: 'Name',
     size: 140,
-    Cell: ({ row, cell }) => (
-      <span
-        className="cursor-pointer text-sm font-semibold text-black hover:text-blue-500 transition-colors"
-        onClick={() => onView?.(row.original)}
-      >
-        {cell.getValue() || '-'}
-      </span>
-    ),
+    Cell: ({ row, cell }) => {
+      const leadId = row.original.id || row.original._id;
+
+      return (
+        <span
+          className="cursor-pointer text-sm font-semibold text-gray-900 hover:text-blue-500 dark:text-white dark:hover:text-blue-400"
+          onClick={() => onView?.(leadId, row.original)}
+        >
+          {cell.getValue() || '-'}
+        </span>
+      );
+    },
   },
   {
     accessorKey: 'companyName',

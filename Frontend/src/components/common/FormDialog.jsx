@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 
@@ -11,15 +12,19 @@ export default function FormDialog({
   open,
   onOpenChange,
   title = 'Form',
+  description,
   onSubmit,
   children,
   submitLabel = 'Save',
   loading = false,
   size = 'default',
+  formId = 'dialog-form',
 }) {
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(e);
+    if (onSubmit) {
+      onSubmit(e);
+    }
   };
 
   return (
@@ -33,25 +38,28 @@ export default function FormDialog({
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          {description && (
+            <DialogDescription>{description}</DialogDescription>
+          )}
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id={formId} onSubmit={handleSubmit} className="space-y-4">
           {children}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : submitLabel}
-            </Button>
-          </DialogFooter>
         </form>
+
+        <DialogFooter className="pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={loading}>
+            {loading ? 'Saving...' : submitLabel}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

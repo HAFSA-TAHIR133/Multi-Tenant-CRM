@@ -43,7 +43,7 @@ export function TeamSwitcher({ teams }) {
               />
             }
           >
-            <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground dark:bg-white dark:text-black">
               <Logo className="size-4" />
             </div>
 
@@ -79,7 +79,7 @@ export function TeamSwitcher({ teams }) {
                     key={team.name}
                     onClick={() => setActiveTeam(team)}
                   >
-                    <div className="flex size-6 items-center justify-center rounded border">
+                    <div className="flex size-6 items-center justify-center rounded border dark:bg-white dark:text-black">
                       <TeamLogo className="size-4" />
                     </div>
 

@@ -6,7 +6,7 @@ import { leadsApi } from '../api/leadsApi';
 import { getLeadColumns } from '../columns/leadColumns';
 import DataTable from '@/components/common/DataTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button, TextInput } from '@mantine/core';
+import { Button, TextInput, Skeleton, Stack } from '@mantine/core';
 import { IconSearch, IconPlus } from '@tabler/icons-react';
 
 import AddLeadDialog from '../components/AddLeadDialog';
@@ -69,8 +69,12 @@ export default function Leads() {
     );
   }, [leads, globalFilter]);
 
-  const handleView = (lead) => {
-    const targetId = lead?.id || lead?._id;
+  // Updated handleView to handle both an ID string or a lead object safely
+  const handleView = (leadOrId, originalLead) => {
+    const targetId = typeof leadOrId === 'object' 
+      ? (leadOrId?.id || leadOrId?._id) 
+      : (leadOrId || originalLead?.id || originalLead?._id);
+
     if (!targetId) return;
 
     if (canManage) {
@@ -140,6 +144,7 @@ export default function Leads() {
         value={globalFilter}
         onChange={(e) => setGlobalFilter(e.currentTarget.value)}
         className="max-w-sm"
+        disabled={loading}
       />
 
       {error ? (
@@ -153,16 +158,26 @@ export default function Leads() {
           <CardTitle>All Leads</CardTitle>
         </CardHeader>
         <CardContent className="p-0 sm:p-6">
-          <DataTable
-            columns={columns}
-            data={filteredLeads}
-            loading={loading}
-            emptyMessage="No leads found."
-            enableGlobalFilter={false}
-            enableTopToolbar={false}
-            enableBottomToolbar={false}
-            enablePagination={false}
-          />
+          {loading ? (
+            <Stack gap="sm" className="p-4">
+              <Skeleton height={40} radius="sm" />
+              <Skeleton height={40} radius="sm" />
+              <Skeleton height={40} radius="sm" />
+              <Skeleton height={40} radius="sm" />
+              <Skeleton height={40} radius="sm" />
+            </Stack>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filteredLeads}
+              loading={loading}
+              emptyMessage="No leads found."
+              enableGlobalFilter={false}
+              enableTopToolbar={false}
+              enableBottomToolbar={false}
+              enablePagination={false}
+            />
+          )}
         </CardContent>
       </Card>
 

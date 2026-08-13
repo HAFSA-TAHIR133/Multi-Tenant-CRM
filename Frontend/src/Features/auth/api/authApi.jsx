@@ -1,7 +1,8 @@
 import { fetchApi } from "../../../api/fetchApiHelper.jsx";
 
 const BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/+$/, "");
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1"
+).replace(/\/+$/, "");
 
 export const authApi = {
   login: (credentials) =>
@@ -20,6 +21,25 @@ export const authApi = {
     fetchApi("/auth/register", {
       method: "POST",
       body: payload,
+    }),
+
+  // --- Password Reset API Calls ---
+  forgotPassword: (email) =>
+    fetchApi("/auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    }),
+
+  verifyOtp: (email, otp) =>
+    fetchApi("/auth/verify-otp", {
+      method: "POST",
+      body: { email, otp },
+    }),
+
+  resetPassword: (email, otp, password) =>
+    fetchApi("/auth/reset-password", {
+      method: "POST",
+      body: { email, otp, password },
     }),
 
   refresh: async () => {

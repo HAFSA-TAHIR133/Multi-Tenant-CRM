@@ -44,6 +44,18 @@ export default function UserMenu({
 
   if (!user) return null;
 
+  // Resolve raw avatar string and attach API Base URL for relative paths
+  const rawAvatar = user?.profile?.avatar || user?.avatar || "";
+  const API_BASE = import.meta.env.VITE_API_BASE_URL
+    ? new URL(import.meta.env.VITE_API_BASE_URL).origin
+    : "http://localhost:5000";
+
+  const avatarUrl = rawAvatar
+    ? rawAvatar.startsWith("http") || rawAvatar.startsWith("data:")
+      ? rawAvatar
+      : `${API_BASE}/${rawAvatar.replace(/^\/+/, "")}`
+    : "";
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -51,7 +63,7 @@ export default function UserMenu({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton size="lg" className="aria-expanded:bg-muted">
               <Avatar>
-                <AvatarImage src={user.avatar || ""} alt={user.name} />
+                <AvatarImage src={avatarUrl} alt={user.name} className="object-cover" />
                 <AvatarFallback>
                   {user.name?.charAt(0)?.toUpperCase() || "U"}
                 </AvatarFallback>
@@ -75,7 +87,7 @@ export default function UserMenu({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar>
-                  <AvatarImage src={user.avatar || ""} alt={user.name} />
+                  <AvatarImage src={avatarUrl} alt={user.name} className="object-cover" />
                   <AvatarFallback>
                     {user.name?.charAt(0)?.toUpperCase() || "U"}
                   </AvatarFallback>

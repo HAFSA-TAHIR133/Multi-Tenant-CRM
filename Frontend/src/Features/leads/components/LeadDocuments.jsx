@@ -10,7 +10,6 @@ import {
   FiLoader,
   FiDownload,
 } from "react-icons/fi";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,20 +73,20 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
     setDocToDelete(doc);
   };
 
-  const confirmDeleteDocument = async () => {
+  const confirmDeleteDocument = async (e) => {
+    e?.preventDefault(); // Prevent default dialog closure until async deletion completes
     if (!leadId || !docToDelete) return;
 
     const docId = docToDelete.id || docToDelete._id;
-
     try {
       setDeletingId(docId);
       await leadsApi.deleteDocument(leadId, docId);
       setDocuments((prev) => prev.filter((d) => (d.id || d._id) !== docId));
+      setDocToDelete(null);
     } catch (err) {
       console.error("Failed to delete document:", err);
     } finally {
       setDeletingId(null);
-      setDocToDelete(null);
     }
   };
 
@@ -171,7 +170,6 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
             className="hidden"
             id={`file-upload-lead-${leadId}`}
           />
-
           <label
             htmlFor={`file-upload-lead-${leadId}`}
             className={`flex items-center justify-center gap-2 w-full py-3 px-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-600 dark:text-slate-400 hover:border-violet-400 hover:bg-violet-50/40 dark:hover:bg-violet-950/20 transition-colors cursor-pointer ${
@@ -243,7 +241,6 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
                       >
                         <FiDownload className="w-3.5 h-3.5" />
                       </button>
-
                       <a
                         href={doc.url}
                         target="_blank"
@@ -254,7 +251,6 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
                       >
                         <FiExternalLink className="w-3.5 h-3.5" />
                       </a>
-
                       {!isRegularUser && (
                         <button
                           type="button"
@@ -279,10 +275,12 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
         </div>
       )}
 
-      {/* Delete confirmation */}
+      {/* Delete confirmation dialog */}
       <AlertDialog
         open={!!docToDelete}
-        onOpenChange={(open) => !open && setDocToDelete(null)}
+        onOpenChange={(open) => {
+          if (!open && !deletingId) setDocToDelete(null);
+        }}
       >
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
@@ -292,18 +290,32 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
               <strong className="text-slate-800 dark:text-slate-200">
                 {docToDelete?.name ||
                   docToDelete?.filename ||
+                  docToDelete?.originalName ||
                   "this document"}
               </strong>
               .
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogCancel
+              disabled={deletingId !== null}
+              className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeleteDocument}
-              className="rounded-xl bg-red-600 text-white hover:bg-red-700 focus:ring-red-600"
+              disabled={deletingId !== null}
+              className="rounded-xl bg-red-600 text-white hover:bg-red-700 focus:ring-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Delete
+              {deletingId !== null ? (
+                <>
+                  <FiLoader className="w-4 h-4 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

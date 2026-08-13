@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   AreaChart,
   Area,
@@ -24,13 +24,13 @@ const CustomTooltip = ({ active, payload, xKey, yKey, valueLabel = 'Value', isCu
     const formattedVal = isCurrency ? formatCurrency(rawValue) : rawValue.toLocaleString();
 
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-3 text-white shadow-xl">
-        <p className="mb-1 text-xs font-medium text-slate-400">{data?.[xKey] ?? ''}</p>
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-white">
+        <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">{data?.[xKey] ?? ''}</p>
         <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-slate-100" />
+          <span className="h-2.5 w-2.5 rounded-full bg-black dark:bg-white" />
           <p className="text-sm font-bold">
             {formattedVal}{' '}
-            <span className="text-xs font-normal text-slate-300">{valueLabel}</span>
+            <span className="text-xs font-normal text-slate-500 dark:text-slate-300">{valueLabel}</span>
           </p>
         </div>
       </div>
@@ -39,17 +39,16 @@ const CustomTooltip = ({ active, payload, xKey, yKey, valueLabel = 'Value', isCu
   return null;
 };
 
-const CustomDot = (props) => {
-  const { cx, cy } = props;
+const CustomDot = ({ cx, cy, isDark }) => {
   if (cx === undefined || cy === undefined) return null;
   return (
     <circle
       cx={cx}
       cy={cy}
       r={4.5}
-      fill="#0f172a"
-      stroke="#ffffff"
-      strokeWidth={2.5}
+      fill={isDark ? '#ffffff' : '#09090b'}
+      stroke={isDark ? '#09090b' : '#ffffff'}
+      strokeWidth={2}
       className="cursor-pointer drop-shadow-md"
     />
   );
@@ -67,8 +66,18 @@ export default function TenantsLineGraph({
 }) {
   const [timeframe, setTimeframe] = useState(dropdownOptions[0] || 'This Week');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
-  // Fallback structure to ensure X-axis always has days to show if data is empty
+  // Monitor html.dark class changes to switch stroke & glow dynamically
+  useEffect(() => {
+    const checkDark = () => setIsDark(document.documentElement.classList.contains('dark'));
+    checkDark();
+
+    const observer = new MutationObserver(checkDark);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const defaultEmptyData = [
     { day: 'Sun', [yKey]: 0 },
     { day: 'Mon', [yKey]: 0 },
@@ -89,7 +98,6 @@ export default function TenantsLineGraph({
     return raw.length > 0 ? raw : defaultEmptyData;
   }, [data, yKey]);
 
-  // Calculate maximum value directly to determine precise Y-Axis domain
   const maxVal = useMemo(() => {
     const computedMax = Math.max(...currentData.map((d) => Number(d?.[yKey]) || 0), 0);
     return computedMax === 0 ? 100 : 'auto';
@@ -101,18 +109,21 @@ export default function TenantsLineGraph({
 
   const formattedTotal = isCurrency ? formatCurrency(total) : `+${total.toLocaleString()}`;
 
+  // Theme-dependent colors: Black in Light Mode, White in Dark Mode
+  const mainColor = isDark ? '#ffffff' : '#09090b';
+
   return (
     <div className="flex h-full w-full flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h3 className="text-xl font-extrabold tracking-tight text-slate-900">{title}</h3>
+          <h3 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{title}</h3>
           <div className="mt-2.5 flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-slate-900" />
-              <span className="text-xs font-medium text-slate-500">{valueLabel}</span>
+              <span className="h-2.5 w-2.5 rounded-full bg-black dark:bg-white" />
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{valueLabel}</span>
             </div>
-            <span className="text-xs text-slate-300">•</span>
-            <span className="text-xs font-bold text-slate-900">{formattedTotal} Total</span>
+            <span className="text-xs text-slate-300 dark:text-slate-700">•</span>
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{formattedTotal} Total</span>
           </div>
         </div>
 
@@ -141,7 +152,7 @@ export default function TenantsLineGraph({
                     }`}
                   >
                     <span>{option}</span>
-                    {timeframe === option && <Check size={14} className="text-slate-900" />}
+                    {timeframe === option && <Check size={14} className="text-slate-900 dark:text-white" />}
                   </button>
                 ))}
               </div>
@@ -154,21 +165,21 @@ export default function TenantsLineGraph({
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={currentData} margin={{ top: 10, right: 1, left: 2, bottom: 0 }}>
             <defs>
-              <linearGradient id="graphGlow" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#0f172a" stopOpacity={0.25} />
-                <stop offset="100%" stopColor="#0f172a" stopOpacity={0} />
+              <linearGradient id="themeGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={mainColor} stopOpacity={isDark ? 0.25 : 0.15} />
+                <stop offset="100%" stopColor={mainColor} stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
               dataKey={xKey}
-              stroke="#94a3b8"
+              stroke="#64748b"
               fontSize={12}
               tickLine={false}
               axisLine={false}
               dy={10}
             />
             <YAxis
-              stroke="#94a3b8"
+              stroke="#64748b"
               fontSize={12}
               tickLine={false}
               axisLine={false}
@@ -185,12 +196,12 @@ export default function TenantsLineGraph({
             <Area
               type="monotone"
               dataKey={yKey}
-              stroke="#0f172a"
-              strokeWidth={3.5}
+              stroke={mainColor}
+              strokeWidth={3}
               fillOpacity={1}
-              fill="url(#graphGlow)"
-              dot={<CustomDot />}
-              activeDot={{ r: 7, fill: '#ffffff', stroke: '#0f172a', strokeWidth: 3 }}
+              fill="url(#themeGlow)"
+              dot={<CustomDot isDark={isDark} />}
+              activeDot={{ r: 7, fill: mainColor, stroke: isDark ? '#09090b' : '#ffffff', strokeWidth: 2 }}
             />
           </AreaChart>
         </ResponsiveContainer>

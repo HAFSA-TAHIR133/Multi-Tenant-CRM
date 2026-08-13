@@ -3,15 +3,15 @@ import Login from '../../Features/auth/pages/Login';
 import ProtectedRoutes from './protectedRoutes';
 import { ROLES } from '../../constants/roles';
 
-import RootRedirect from './RouteRedirect'; 
+import RootRedirect from './RouteRedirect';
 
 import SuperAdminDashboard from '../../Features/dashboard/pages/SuperadminDashboard';
 import AdminDashboard from '../../Features/dashboard/pages/AdminDashboard';
-import UserDashboard from '../../Features/dashboard/pages/UserDashboard'; 
+import UserDashboard from '../../Features/dashboard/pages/UserDashboard';
 
 import DashboardLayout from '../../components/layout/dashboard-layout';
 import AdminLayout from '../../components/layout/AdminLayout';
-import UserLayout from '../../components/layout/UserLayout'; 
+import UserLayout from '../../components/layout/UserLayout';
 
 import Tenants from '../../Features/tenants/pages/Tenants';
 import TenantUsers from '../../Features/tenants/pages/TenantsUsers';
@@ -23,6 +23,7 @@ import UserDetails from '@/Features/users/pages/UserDetails';
 import Tasks from '@/Features/tasks/pages/Tasks';
 import EditLeadDialog from '@/Features/leads/components/EditLeadDialog';
 import NotFound from '../../../src/components/common/pages/NotFound';
+import ProfilePage from '@/components/common/pages/ProfilePage';
 
 export default function AppRoutes() {
   return (
@@ -39,6 +40,7 @@ export default function AppRoutes() {
           <Route path="/dashboard" element={<SuperAdminDashboard />} />
           <Route path="/tenants" element={<Tenants />} />
           <Route path="/superadmin/tenants/:tenantId/users" element={<TenantUsers />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Route>
 
@@ -48,15 +50,26 @@ export default function AppRoutes() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/leads" element={<Leads />} />
           <Route path="/admin/leads/:id" element={<LeadDetails />} />
+          <Route path="/admin/leads/:id/edit" element={<EditLeadDialog />} />
           <Route path="/admin/pipelines" element={<Pipelines />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/users/:id" element={<UserDetails />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path='/leads/:id/edit' element={<EditLeadDialog />} />
+
+          <Route path="/admin/users" element={<Users />} />
+          <Route path="/admin/users/:id" element={<UserDetails />} />
+          <Route path="/admin/tasks" element={<Tasks />} />
+
+          {/* Legacy un-prefixed URLs */}
+          <Route path="/users" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/users/:id" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/tasks" element={<Navigate to="/admin/tasks" replace />} />
+          <Route path="/leads/:id/edit" element={<Navigate to="/admin/leads" replace />} />
+
+          {/* Admin Profile Route */}
+          <Route path="/admin/profile" element={<ProfilePage />} />
+          <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
         </Route>
       </Route>
 
-      {/* User Routes */}
+      {/* Standard User Routes */}
       <Route element={<ProtectedRoutes allowedRoles={[ROLES.USER]} />}>
         <Route element={<UserLayout />}>
           <Route path="/user/dashboard" element={<UserDashboard />} />
@@ -64,10 +77,14 @@ export default function AppRoutes() {
           <Route path="/user/leads/:id" element={<LeadDetails />} />
           <Route path="/user/users" element={<Users />} />
           <Route path="/user/tasks" element={<Tasks />} />
+
+          {/* User Profile Route */}
+          <Route path="/user/profile" element={<ProfilePage />} />
+          <Route path="/profile" element={<Navigate to="/user/profile" replace />} />
         </Route>
       </Route>
 
-      {/* Fallback */}
+      {/* Catch-all Fallback */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
