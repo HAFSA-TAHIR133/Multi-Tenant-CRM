@@ -23,8 +23,9 @@ export default function NotFound() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
           </Button>
           <Button asChild className="w-full sm:w-auto">
-            <Link to="/">
-              <Home className="mr-2 h-4 w-4" /> Back to Home
+            <Link to="/" className="inline-flex items-center justify-center">
+              <Home className="mr-2 h-4 w-4 shrink-0" />
+              <span>Back to Home</span>
             </Link>
           </Button>
         </CardContent>
