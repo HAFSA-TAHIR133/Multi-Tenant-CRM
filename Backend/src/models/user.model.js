@@ -6,10 +6,10 @@ export default (sequelize) => {
   User.init(
     {
       id: {
-         type: DataTypes.INTEGER,
-         primaryKey: true,
-         autoIncrement: true,
-         allowNull: false,
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        allowNull: false,
       },
       tenantId: {
         type: DataTypes.INTEGER,
@@ -46,6 +46,17 @@ export default (sequelize) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+
+      // --- OTP Reset Columns ---
+      resetOtp: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      resetOtpExpires: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,

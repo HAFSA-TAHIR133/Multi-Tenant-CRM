@@ -1,6 +1,5 @@
 import nodemailer from "nodemailer";
 
-// Create reusable transporter object using SMTP transport
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: Number(process.env.SMTP_PORT) || 587,
@@ -12,19 +11,30 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendEmail = async ({ to, subject, html, text }) => {
-  if (!to) return;
+  if (!to) {
+    console.error("❌ Email send skipped: 'to' address is missing.");
+    return;
+  }
+
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.error(
+      "❌ SMTP credentials missing! Ensure SMTP_USER and SMTP_PASS are set in your environment variables."
+    );
+    throw new Error("Email service is not configured properly.");
+  }
+
   try {
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || `"Admin" <${process.env.SMTP_USER}>`,
+      from: process.env.SMTP_FROM || `"Support" <${process.env.SMTP_USER}>`,
       to,
       subject,
       text,
       html,
     });
-    console.log("Email sent: %s", info.messageId);
+    console.log("✅ Email sent successfully to %s | Message ID: %s", to, info.messageId);
     return info;
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("❌ Error sending email via SMTP:", error);
     throw error;
   }
 };

@@ -19,7 +19,7 @@ export const authMiddleware = (requiredRole) => {
       const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Check tenant status (skip for users without a tenant, e.g. system-level)
+      // Check tenant status (skip for users without a tenant)
       if (decoded.tenantId) {
         const tenant = await Tenant.findByPk(decoded.tenantId);
         if (!tenant) {
@@ -36,17 +36,30 @@ export const authMiddleware = (requiredRole) => {
         }
       }
 
-      // Role check
-      if (requiredRole && decoded.role < requiredRole) {
-        return httpResponse.FORBIDDEN(
-          res,
-          {},
-          ErrorCodesMeta.INSUFFICIENT_PERMISSION?.message ||
-            ErrorCodesMeta.FORBIDDEN.message
-        );
-      }
+      // FIXED: Safely convert roles to Numbers before checking hierarchy
+      const userRoleNum = Number(decoded.role);
+const requiredRoleNum = Number(requiredRole);
 
-      req.user = decoded;
+if (
+  requiredRole !== undefined &&
+  !isNaN(userRoleNum) &&
+  !isNaN(requiredRoleNum) &&
+  userRoleNum < requiredRoleNum // FIXED: Block if user's role level is LESS than required
+) {
+  return httpResponse.FORBIDDEN(
+    res,
+    {},
+    ErrorCodesMeta.INSUFFICIENT_PERMISSION?.message ||
+      ErrorCodesMeta.FORBIDDEN.message
+  );
+}
+
+      // Standardize user object
+      req.user = {
+        ...decoded,
+        id: decoded.id || decoded.userId,
+      };
+
       req.tenant = decoded.tenantId ? await Tenant.findByPk(decoded.tenantId) : null;
 
       next();

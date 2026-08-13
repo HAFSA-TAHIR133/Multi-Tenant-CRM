@@ -8,7 +8,7 @@ import leadRoute from "./lead.routes.js";
 import taskRoutes from './task.routes.js';
 import dashboardRoute from './dashboard.routes.js';
 import taskCommentsRouter from "./taskComments.routes.js";
-
+import profileRouter from "./profile.routes.js";
 const protectedRouter = express.Router();
 const unProtectedRouter = express.Router();
 
@@ -27,5 +27,6 @@ protectedRouter.use("/leads",leadRoute);
 protectedRouter.use('/tasks', taskRoutes);
 protectedRouter.use("/dashboard",dashboardRoute);
 protectedRouter.use("/taskComments",taskCommentsRouter);
+protectedRouter.use("/profile", profileRouter);
 
 export { unProtectedRouter, protectedRouter };

@@ -5,7 +5,6 @@ import fs from 'fs';
 import os from 'os';
 import { httpResponse } from '../utils/httpResponse.js';
 
-// Use OS temporary directory in production/Vercel serverless environments
 const uploadDir = path.join(os.tmpdir(), 'uploads', 'temp');
 
 if (!fs.existsSync(uploadDir)) {
@@ -23,13 +22,14 @@ const storage = multer.diskStorage({
   },
 });
 
-const rawUpload = multer({
+// Existing Document Middleware (.single('file'))
+const rawUploadDocument = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 }).single('file');
 
 export const uploadSingleDocument = (req, res, next) => {
-  rawUpload(req, res, (err) => {
+  rawUploadDocument(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return httpResponse.BAD_REQUEST(
@@ -41,7 +41,38 @@ export const uploadSingleDocument = (req, res, next) => {
       return httpResponse.BAD_REQUEST(res, {}, err.message);
     }
     if (err) {
-      console.error('Multer error:', err);
+      return httpResponse.BAD_REQUEST(res, {}, err.message);
+    }
+    next();
+  });
+};
+
+// Avatar Middleware (.single('avatar'))
+const rawUploadAvatar = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed for avatars."), false);
+    }
+  },
+}).single("avatar");
+
+export const uploadSingleAvatar = (req, res, next) => {
+  rawUploadAvatar(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return httpResponse.BAD_REQUEST(
+          res,
+          {},
+          "Avatar size exceeds maximum allowed limit of 5MB."
+        );
+      }
+      return httpResponse.BAD_REQUEST(res, {}, err.message);
+    }
+    if (err) {
       return httpResponse.BAD_REQUEST(res, {}, err.message);
     }
     next();

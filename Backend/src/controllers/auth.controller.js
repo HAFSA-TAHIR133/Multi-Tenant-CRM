@@ -6,7 +6,7 @@ const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 7 * 24 * 60 * 60 * 1000,
   path: '/',
 };
 
@@ -20,7 +20,7 @@ const CLEAR_COOKIE_OPTIONS = {
 class AuthController {
   async createUser(req, res) {
     try {
-      const creator = req.user; // from authMiddleware after verify the user access level
+      const creator = req.user;
       const userData = req.body;
 
       const user = await AuthService.createUser(userData, creator);
@@ -117,14 +117,12 @@ class AuthController {
 
       const result = await AuthService.refreshToken(refreshToken);
 
-      // Rotate: set the NEW refresh token cookie
       res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
 
       return httpResponse.SUCCESS(res, {
         accessToken: result.accessToken,
       });
     } catch (error) {
-      // Always clear the cookie with matching path "/" so it is actually removed
       res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
 
       if (error.code === ErrorCodesMeta.UNAUTHORIZED.code) {
@@ -195,10 +193,26 @@ class AuthController {
     }
   }
 
+  async verifyResetOtp(req, res) {
+    try {
+      const { email, otp } = req.body;
+      const result = await AuthService.verifyResetOtp(email, otp);
+
+      return httpResponse.SUCCESS(res, result);
+    } catch (error) {
+      console.error('Verify OTP error:', error);
+      return httpResponse.BAD_REQUEST(
+        res,
+        {},
+        error.message || ErrorCodesMeta.BAD_REQUEST.message
+      );
+    }
+  }
+
   async resetPassword(req, res) {
     try {
-      const { token, password } = req.body;
-      const result = await AuthService.resetPassword(token, password);
+      const { email, otp, password } = req.body;
+      const result = await AuthService.resetPassword(email, otp, password);
 
       return httpResponse.SUCCESS(res, result);
     } catch (error) {
