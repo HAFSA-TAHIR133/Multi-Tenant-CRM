@@ -91,11 +91,6 @@ const data = {
         icon: ListTodo,
       },
       {
-        title: "Users",
-        url: "/user/users",
-        icon: Users,
-      },
-      {
         title: "Tasks",
         url: "/user/tasks",
         icon: ListTodo,

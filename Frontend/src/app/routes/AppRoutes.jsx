@@ -75,7 +75,6 @@ export default function AppRoutes() {
           <Route path="/user/dashboard" element={<UserDashboard />} />
           <Route path="/user/leads" element={<Leads />} />
           <Route path="/user/leads/:id" element={<LeadDetails />} />
-          <Route path="/user/users" element={<Users />} />
           <Route path="/user/tasks" element={<Tasks />} />
 
           {/* User Profile Route */}
