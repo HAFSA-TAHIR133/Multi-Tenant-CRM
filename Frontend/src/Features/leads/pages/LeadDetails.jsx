@@ -152,18 +152,22 @@ export default function LeadDetails() {
     }
   }, []);
 
+  // Only load full pipeline list for admins / super-admins
   useEffect(() => {
     loadLead();
-    loadPipelines();
-  }, [loadLead, loadPipelines]);
+    if (canChangePipeline) {
+      loadPipelines();
+    }
+  }, [loadLead, loadPipelines, canChangePipeline]);
 
+  // Only load stages list when user is allowed to change pipeline/stage
   useEffect(() => {
-    if (selectedPipelineId) {
+    if (selectedPipelineId && canChangePipeline) {
       loadStages(selectedPipelineId);
     } else {
       setStages([]);
     }
-  }, [selectedPipelineId, loadStages]);
+  }, [selectedPipelineId, loadStages, canChangePipeline]);
 
   const isClosed = ['closed', 'close'].includes(String(lead?.status || '').toLowerCase());
 
@@ -185,7 +189,7 @@ export default function LeadDetails() {
   };
 
   const handleStageChange = async (stageIdStr) => {
-    if (!stageIdStr || isClosed) return;
+    if (!stageIdStr || isClosed || isRegularUser) return;
     const newStageId = Number(stageIdStr);
     setSavingStage(true);
     try {
@@ -206,7 +210,7 @@ export default function LeadDetails() {
       await leadsApi.delete(id);
       toast.success('Lead deleted successfully');
       setDeleteModalOpened(false);
-      navigate('/admin/leads', { replace: true })
+      navigate('/admin/leads', { replace: true });
     } catch (err) {
       toast.error(err?.message || 'Failed to delete lead');
     } finally {
@@ -260,8 +264,20 @@ export default function LeadDetails() {
     lead.assignedUserName ||
     'Unassigned';
 
-  const pipelineOptions = pipelines.map((p) => ({ value: String(p.id), label: p.name }));
-  const stageOptions = stages.map((s) => ({ value: String(s.id), label: s.name }));
+  // Build options – fall back to the data already present on the lead object
+  // so regular users still see the correct names without calling the failing APIs
+  const pipelineOptions = canChangePipeline
+    ? pipelines.map((p) => ({ value: String(p.id), label: p.name }))
+    : lead?.pipeline
+      ? [{ value: String(lead.pipelineId), label: lead.pipeline.name || '—' }]
+      : [];
+
+  const stageOptions =
+    canChangePipeline && stages.length > 0
+      ? stages.map((s) => ({ value: String(s.id), label: s.name }))
+      : lead?.stage
+        ? [{ value: String(lead.stageId), label: lead.stage.name || '—' }]
+        : [];
 
   return (
     <div className="p-6 space-y-6 max-w-6xl mx-auto">
@@ -494,7 +510,12 @@ export default function LeadDetails() {
                     value={selectedPipelineId ? String(selectedPipelineId) : null}
                     onChange={handlePipelineChange}
                     size="sm"
-                    disabled={isClosed || !canChangePipeline || savingPipeline || pipelinesLoading}
+                    disabled={
+                      isClosed ||
+                      !canChangePipeline ||
+                      savingPipeline ||
+                      pipelinesLoading
+                    }
                     rightSection={savingPipeline && <Loader size="xs" />}
                   />
                 </div>
@@ -507,7 +528,13 @@ export default function LeadDetails() {
                     value={selectedStageId ? String(selectedStageId) : null}
                     onChange={handleStageChange}
                     size="sm"
-                    disabled={isClosed || savingStage || stagesLoading || stages.length === 0}
+                    disabled={
+                      isClosed ||
+                      isRegularUser ||          // users can only VIEW the stage
+                      savingStage ||
+                      stagesLoading ||
+                      stageOptions.length === 0
+                    }
                     rightSection={savingStage && <Loader size="xs" />}
                   />
                 </div>
