@@ -86,6 +86,7 @@ export default function TaskTable({
       {
         accessorKey: "title",
         header: "Task Name",
+        size: 250,
         Cell: ({ row }) => {
           const task = row.original;
           const taskId = task.id || task._id;
@@ -93,7 +94,7 @@ export default function TaskTable({
           const isEditing = !isRegularUser && editingTitleId === taskId;
 
           return (
-            <div className="flex items-center" onClick={(e) => isEditing && e.stopPropagation()}>
+            <div className="flex items-center min-w-[200px]" onClick={(e) => isEditing && e.stopPropagation()}>
               {isEditing ? (
                 <div className="flex items-center gap-1.5 flex-1">
                   <Input
@@ -143,7 +144,7 @@ export default function TaskTable({
           const task = row.original;
           const taskId = task.id || task._id;
           return (
-            <div onClick={(e) => e.stopPropagation()}>
+            <div onClick={(e) => e.stopPropagation()} className="min-w-[110px]">
               <Select
                 disabled={isRegularUser}
                 value={task.priority?.toLowerCase() || "low"}
@@ -177,7 +178,7 @@ export default function TaskTable({
           const task = row.original;
           const { name, avatar } = getAssignedUserInfo(task);
           return (
-            <div className="flex items-center gap-2 py-0.5">
+            <div className="flex items-center gap-2 py-0.5 min-w-[140px]">
               <Avatar className="h-6 w-6 shrink-0">
                 <AvatarImage src={avatar} />
                 <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-bold">
@@ -205,7 +206,7 @@ export default function TaskTable({
         const task = row.original;
         const taskId = task.id || task._id;
         return (
-          <div className="relative inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="relative inline-flex items-center min-w-[120px]" onClick={(e) => e.stopPropagation()}>
             {!isRegularUser && (
               <input
                 type="date"
@@ -227,23 +228,31 @@ export default function TaskTable({
   }, [users, isRegularUser, showAssignedTo, editingTitleId, titleValue]);
 
   return (
-    <DataTable
-      columns={columns}
-      data={tasks}
-      loading={loading}
-      emptyMessage="No tasks found."
-      mantineTableBodyRowProps={({ row }) => {
-        const task = row.original;
-        const taskId = task.id || task._id;
-        const isSelected = activeCommentTaskId === taskId;
+    <div className="w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] rounded-md border border-slate-200 dark:border-slate-800">
+      <div className="min-w-[650px] inline-block align-middle w-full">
+        <DataTable
+          columns={columns}
+          data={tasks}
+          loading={loading}
+          emptyMessage="No tasks found."
+          mantineTableProps={{
+            highlightOnHover: true,
+            withColumnBorders: false,
+          }}
+          mantineTableBodyRowProps={({ row }) => {
+            const task = row.original;
+            const taskId = task.id || task._id;
+            const isSelected = activeCommentTaskId === taskId;
 
-        return {
-          onClick: () => onOpenComments(task),
-          className: `cursor-pointer transition-colors duration-150 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 ${
-            isSelected ? "bg-slate-100/70 dark:bg-slate-800/60" : ""
-          }`,
-        };
-      }}
-    />
+            return {
+              onClick: () => onOpenComments(task),
+              className: `cursor-pointer transition-colors duration-150 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 ${
+                isSelected ? "bg-slate-100/70 dark:bg-slate-800/60" : ""
+              }`,
+            };
+          }}
+        />
+      </div>
+    </div>
   );
 }
