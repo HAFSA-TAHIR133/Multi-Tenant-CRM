@@ -61,9 +61,17 @@ const LeadDocument = LeadDocumentModel(sequelize);
 
 // --- ASSOCIATIONS ---
 
-// Tenant ↔ Users
-TenantModel.hasMany(UserModel, { foreignKey: 'tenantId', as: 'users' });
-UserModel.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenant' });
+// Tenant ↔ Users (Add onDelete: 'CASCADE')
+TenantModel.hasMany(UserModel, { 
+  foreignKey: 'tenantId', 
+  as: 'users', 
+  onDelete: 'CASCADE' 
+});
+UserModel.belongsTo(TenantModel, { 
+  foreignKey: 'tenantId', 
+  as: 'tenant', 
+  onDelete: 'CASCADE' 
+});
 
 // User ↔ Profile
 UserModel.hasOne(ProfileModel, { foreignKey: 'userId', as: 'profile' });
@@ -74,20 +82,20 @@ UserModel.hasMany(LeadModel, { foreignKey: 'assignedUserId', as: 'assignedLeads'
 LeadModel.belongsTo(UserModel, { foreignKey: 'assignedUserId', as: 'assignedUser' });
 
 // Tenant ↔ Pipelines
-TenantModel.hasMany(PipelineModel, { foreignKey: 'tenantId', as: 'pipelines' });
-PipelineModel.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenant' });
+TenantModel.hasMany(PipelineModel, { foreignKey: 'tenantId', as: 'pipelines', onDelete: 'CASCADE' });
+PipelineModel.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenant', onDelete: 'CASCADE' });
 
 // Pipeline ↔ Stages
 PipelineModel.hasMany(StageModel, { foreignKey: 'pipelineId', as: 'stages' });
 StageModel.belongsTo(PipelineModel, { foreignKey: 'pipelineId', as: 'pipeline' });
 
 // Tenant ↔ Stages
-TenantModel.hasMany(StageModel, { foreignKey: 'tenantId', as: 'stagesDirect' });
-StageModel.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenantDirect' });
+TenantModel.hasMany(StageModel, { foreignKey: 'tenantId', as: 'stagesDirect', onDelete: 'CASCADE' });
+StageModel.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenantDirect', onDelete: 'CASCADE' });
 
 // Tenant ↔ Leads
-TenantModel.hasMany(LeadModel, { foreignKey: 'tenantId', as: 'leads' });
-LeadModel.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenant' });
+TenantModel.hasMany(LeadModel, { foreignKey: 'tenantId', as: 'leads', onDelete: 'CASCADE' });
+LeadModel.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenant', onDelete: 'CASCADE' });
 
 // Stage ↔ Leads
 StageModel.hasMany(LeadModel, { foreignKey: 'stageId', as: 'leads' });
@@ -98,8 +106,8 @@ PipelineModel.hasMany(LeadModel, { foreignKey: 'pipelineId', as: 'leads' });
 LeadModel.belongsTo(PipelineModel, { foreignKey: 'pipelineId', as: 'pipeline' });
 
 // Tenant ↔ LeadHistories
-TenantModel.hasMany(LeadHistoryModel, { foreignKey: 'tenantId', as: 'leadHistories' });
-LeadHistoryModel.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenant' });
+TenantModel.hasMany(LeadHistoryModel, { foreignKey: 'tenantId', as: 'leadHistories', onDelete: 'CASCADE' });
+LeadHistoryModel.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenant', onDelete: 'CASCADE' });
 
 // Lead ↔ LeadHistories
 LeadModel.hasMany(LeadHistoryModel, { foreignKey: 'leadId', as: 'histories' });
@@ -121,10 +129,9 @@ UserModel.hasMany(RefreshTokenModel, { foreignKey: 'userId', as: 'refreshTokens'
 RefreshTokenModel.belongsTo(UserModel, { foreignKey: 'userId', as: 'user' });
 
 // --- TASK ASSOCIATIONS ---
-
-// Task ↔ Tenant
-TenantModel.hasMany(TaskModal, { foreignKey: 'tenantId', as: 'tasks' });
-TaskModal.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenant' });
+// Tenant ↔ Tasks
+TenantModel.hasMany(TaskModal, { foreignKey: 'tenantId', as: 'tasks', onDelete: 'CASCADE' });
+TaskModal.belongsTo(TenantModel, { foreignKey: 'tenantId', as: 'tenant', onDelete: 'CASCADE' });
 
 // Task ↔ Lead
 LeadModel.hasMany(TaskModal, { foreignKey: 'leadId', as: 'tasks' });
