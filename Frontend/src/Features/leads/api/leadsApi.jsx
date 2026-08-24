@@ -72,6 +72,18 @@ export const leadsApi = {
     );
   },
 
+  update: (id, leadData) => {
+    return unwrap(
+      fetchApi(`/leads/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(leadData),
+      })
+    );
+  },
+
   // DELETE /leads/:id
   deleteLead: (id) => {
     return unwrap(
