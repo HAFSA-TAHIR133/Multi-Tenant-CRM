@@ -1,10 +1,12 @@
 const BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/+$/, "");
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1"
+).replace(/\/+$/, "");
 
 function getAuth() {
   try {
     return JSON.parse(localStorage.getItem("auth") || "null");
-  } catch {
+    // eslint-disable-next-line no-unused-vars
+  } catch (e) {
     return null;
   }
 }
@@ -14,7 +16,6 @@ function setAuth(nextAuth) {
 }
 
 let refreshPromise = null;
-
 const AUTH_UPDATED_EVENT = "auth:updated";
 
 function notifyAuthUpdated() {
@@ -23,17 +24,13 @@ function notifyAuthUpdated() {
 
 async function refreshAccessToken() {
   const auth = getAuth();
-
   const res = await fetch(`${BASE_URL}/auth/refresh`, {
     method: "POST",
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
   });
 
   let data = null;
-
   try {
     data = await res.json();
   } catch {
@@ -41,38 +38,25 @@ async function refreshAccessToken() {
   }
 
   if (!res.ok) {
-    const error = new Error(
-      data?.message || "Unable to refresh access token"
-    );
+    const error = new Error(data?.message || "Unable to refresh access token");
     error.status = res.status;
     throw error;
   }
 
   const newAccessToken = data.data?.accessToken || data.accessToken || data.token;
+  if (!newAccessToken) throw new Error("No access token returned.");
 
-  if (!newAccessToken) {
-    throw new Error("No access token returned.");
-  }
-
-  const nextAuth = {
-    ...(auth || {}),
-    accessToken: newAccessToken,
-  };
-
+  const nextAuth = { ...(auth || {}), accessToken: newAccessToken };
   setAuth(nextAuth);
-
   notifyAuthUpdated();
-
   return newAccessToken;
 }
 
-
 function getRefreshedToken() {
   if (!refreshPromise) {
-    refreshPromise = refreshAccessToken()
-      .finally(() => {
-        refreshPromise = null;
-      });
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
   }
   return refreshPromise;
 }
@@ -83,12 +67,8 @@ function clearAuthState() {
 }
 
 const AUTH_ENDPOINTS = [
-  "/auth/login",
-  "/auth/google",
-  "/auth/refresh",
-  "/auth/logout",
-  "/auth/forgot-password",
-  "/auth/reset-password",
+  "/auth/login", "/auth/google", "/auth/refresh", "/auth/logout",
+  "/auth/forgot-password", "/auth/reset-password",
 ];
 
 function isAuthEndpoint(endpoint) {
@@ -97,20 +77,10 @@ function isAuthEndpoint(endpoint) {
 
 export async function fetchApi(endpoint, options = {}, retrying = false) {
   const auth = getAuth();
-
   const token = auth?.accessToken;
+  const tenantId = auth?.activeTenant?.id || auth?.activeTenantId || auth?.tenant?.id;
 
-  const tenantId =
-    auth?.activeTenant?.id ||
-    auth?.activeTenantId ||
-    auth?.tenant?.id;
-
-  const {
-    method = "GET",
-    body,
-    headers = {},
-    ...rest
-  } = options;
+  const { method = "GET", body, headers = {}, ...rest } = options;
 
   const finalHeaders = { ...headers };
   if (!(body instanceof FormData)) {
@@ -123,28 +93,32 @@ export async function fetchApi(endpoint, options = {}, retrying = false) {
     method,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
-      ...finalHeaders,...(token? {Authorization: `Bearer ${token}`,}
-        : {}),
-      ...(tenantId
-        ? {
-            "X-Tenant-Id": tenantId,
-          }
-        : {}),
+      ...finalHeaders,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
     },
     ...rest,
   };
 
+  // Explicitly set or remove Content-Type based on body type
   if (body instanceof FormData) {
-    delete config.headers["Content-Type"];
+    delete config.headers["Content-Type"]; // Let browser set multipart boundary
+  } else if (!config.headers["Content-Type"]) {
+    config.headers["Content-Type"] = "application/json";
   }
 
+  // FIX: Prevent double-stringification
   if (body !== undefined && method !== "GET") {
-    config.body = body instanceof FormData ? body : JSON.stringify(body);
+    if (body instanceof FormData) {
+      config.body = body;
+    } else if (typeof body === 'string') {
+      config.body = body; // Already stringified, do not stringify again
+    } else {
+      config.body = JSON.stringify(body);
+    }
   }
 
   let res = await fetch(`${BASE_URL}${endpoint}`, config);
-
   let data = null;
 
   try {
@@ -156,50 +130,34 @@ export async function fetchApi(endpoint, options = {}, retrying = false) {
   if (res.status === 401 && !retrying && !isAuthEndpoint(endpoint)) {
     try {
       const newToken = await getRefreshedToken();
-
       const retryAuth = getAuth();
-
-      const retryTenant =
-        retryAuth?.activeTenant?.id ||
-        retryAuth?.activeTenantId ||
-        retryAuth?.tenant?.id;
+      const retryTenant = retryAuth?.activeTenant?.id || retryAuth?.activeTenantId || retryAuth?.tenant?.id;
 
       const retryConfig = {
         ...config,
         headers: {
           ...config.headers,
           Authorization: `Bearer ${newToken}`,
-          ...(retryTenant
-            ? {
-                "X-Tenant-Id": retryTenant,
-              }
-            : {}),
+          ...(retryTenant ? { "X-Tenant-Id": retryTenant } : {}),
         },
       };
 
       res = await fetch(`${BASE_URL}${endpoint}`, retryConfig);
-
       let retryData = null;
-
       try {
         retryData = await res.json();
       } catch {
         retryData = null;
       }
+
       if (!res.ok) {
         const rawMessage = retryData?.message || retryData?.error;
-        const message = Array.isArray(rawMessage)
-          ? rawMessage.join(", ")
-          : (rawMessage || "Request failed");
-
+        const message = Array.isArray(rawMessage) ? rawMessage.join(", ") : (rawMessage || "Request failed");
         const error = new Error(message);
-
         error.status = res.status;
         error.data = retryData;
-
         throw error;
       }
-
       return retryData;
     } catch (refreshError) {
       clearAuthState();
@@ -209,14 +167,10 @@ export async function fetchApi(endpoint, options = {}, retrying = false) {
 
   if (!res.ok) {
     const rawMessage = data?.message || data?.error;
-    const message = Array.isArray(rawMessage) ? rawMessage.join(", ")
-      : (rawMessage || "Request failed");
-
+    const message = Array.isArray(rawMessage) ? rawMessage.join(", ") : (rawMessage || "Request failed");
     const error = new Error(message);
-
     error.status = res.status;
     error.data = data;
-
     throw error;
   }
 
