@@ -199,30 +199,34 @@ export default function TaskTable({
     }
 
     cols.push({
-      accessorKey: "dueDate",
-      header: "Due Date",
-      size: 140,
-      Cell: ({ row }) => {
-        const task = row.original;
-        const taskId = task.id || task._id;
-        return (
-          <div className="relative inline-flex items-center min-w-[120px]" onClick={(e) => e.stopPropagation()}>
-            {!isRegularUser && (
-              <input
-                type="date"
-                value={task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : ""}
-                onChange={(e) => onUpdateTask(taskId, { dueDate: e.target.value })}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-              />
-            )}
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-md border border-slate-200 text-xs font-medium text-slate-600 bg-white dark:border-slate-700 dark:text-slate-300 dark:bg-slate-800">
-              <span>{formatDate(task.dueDate)}</span>
-              <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
-            </div>
-          </div>
-        );
-      },
-    });
+  accessorKey: "dueDate",
+  header: "Due Date",
+  size: 140,
+  Cell: ({ row }) => {
+    const task = row.original;
+    const taskId = task.id || task._id;
+    return (
+      <div className="relative inline-flex items-center">
+        {!isRegularUser && (
+          <input
+            type="date"
+            value={task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : ""}
+            onClick={(e) => e.stopPropagation()} // Stop row click opening comments
+            onChange={(e) => {
+              e.stopPropagation();
+              onUpdateTask(taskId, { dueDate: e.target.value });
+            }}
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20"
+          />
+        )}
+        <div className="flex items-center gap-2 px-2.5 py-1 rounded-md border border-slate-200 text-xs font-medium text-slate-600 bg-white dark:border-slate-700 dark:text-slate-300 dark:bg-slate-800 pointer-events-none">
+          <span>{formatDate(task.dueDate)}</span>
+          <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
+        </div>
+      </div>
+    );
+  },
+});
 
     return cols;
   }, [users, isRegularUser, showAssignedTo, editingTitleId, titleValue]);
