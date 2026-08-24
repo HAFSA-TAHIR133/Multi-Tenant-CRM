@@ -480,19 +480,6 @@ export default function LeadDetails() {
                     </ActionIcon>
                   </div>
                 </Tooltip>
-                <Tooltip label={isRegularUser ? 'Only admins can delete leads' : 'Delete Lead'}>
-                  <div>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      radius="md"
-                      onClick={() => setDeleteModalOpened(true)}
-                      disabled={isRegularUser}
-                    >
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </div>
-                </Tooltip>
               </Group>
             </Group>
             <Divider mb="lg" />
