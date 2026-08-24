@@ -206,7 +206,7 @@ export default function LeadDetails() {
       await leadsApi.delete(id);
       toast.success('Lead deleted successfully');
       setDeleteModalOpened(false);
-      navigate('/leads');
+      navigate('/admin/leads', { replace: true })
     } catch (err) {
       toast.error(err?.message || 'Failed to delete lead');
     } finally {
