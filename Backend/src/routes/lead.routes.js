@@ -6,14 +6,18 @@ import { UserRole } from '../constants/user-roles.js';
 
 const router = Router();
 
-router.post('/', authMiddleware(UserRole.ADMIN), LeadController.createLead.bind(LeadController));
+// Allow USER and above to create leads (Service layer validates assignment permissions)
+router.post('/', authMiddleware(UserRole.USER), LeadController.createLead.bind(LeadController));
 
+// Allow USER and above to read leads
 router.get('/', authMiddleware(UserRole.USER), LeadController.getAllLeads.bind(LeadController));
 
 router.get('/:id', authMiddleware(UserRole.USER), LeadController.getLeadById.bind(LeadController));
 
+// Allow USER and above to update leads (Service layer validates field-level permissions)
 router.put('/:id', authMiddleware(UserRole.USER), LeadController.updateLead.bind(LeadController));
 
+// Only ADMIN and above can delete leads
 router.delete('/:id', authMiddleware(UserRole.ADMIN), LeadController.deleteLead.bind(LeadController));
 
 router.get('/:id/history', authMiddleware(UserRole.USER), LeadController.getLeadHistory.bind(LeadController));

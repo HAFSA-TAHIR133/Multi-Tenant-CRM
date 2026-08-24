@@ -9,11 +9,7 @@ export const authMiddleware = (requiredRole) => {
       const authHeader = req.headers.authorization;
 
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return httpResponse.UNAUTHORIZED(
-          res,
-          {},
-          ErrorCodesMeta.UNAUTHORIZED.message
-        );
+        return httpResponse.UNAUTHORIZED(res, {}, ErrorCodesMeta.UNAUTHORIZED.message);
       }
 
       const token = authHeader.split(' ')[1];
@@ -30,29 +26,27 @@ export const authMiddleware = (requiredRole) => {
           return httpResponse.UNAUTHORIZED(
             res,
             {},
-            ErrorCodesMeta.TENANT_INACTIVE?.message ||
-              ErrorCodesMeta.FORBIDDEN.message
+            ErrorCodesMeta.TENANT_INACTIVE?.message || ErrorCodesMeta.FORBIDDEN.message
           );
         }
       }
 
-      // FIXED: Safely convert roles to Numbers before checking hierarchy
+      // Safely convert roles to Numbers before checking hierarchy
       const userRoleNum = Number(decoded.role);
-const requiredRoleNum = Number(requiredRole);
+      const requiredRoleNum = Number(requiredRole);
 
-if (
-  requiredRole !== undefined &&
-  !isNaN(userRoleNum) &&
-  !isNaN(requiredRoleNum) &&
-  userRoleNum < requiredRoleNum // FIXED: Block if user's role level is LESS than required
-) {
-  return httpResponse.FORBIDDEN(
-    res,
-    {},
-    ErrorCodesMeta.INSUFFICIENT_PERMISSION?.message ||
-      ErrorCodesMeta.FORBIDDEN.message
-  );
-}
+      if (
+        requiredRole !== undefined &&
+        !isNaN(userRoleNum) &&
+        !isNaN(requiredRoleNum) &&
+        userRoleNum < requiredRoleNum // Block if user's role level is LESS than required
+      ) {
+        return httpResponse.FORBIDDEN(
+          res,
+          {},
+          ErrorCodesMeta.INSUFFICIENT_PERMISSION?.message || ErrorCodesMeta.FORBIDDEN.message
+        );
+      }
 
       // Standardize user object
       req.user = {
@@ -65,11 +59,7 @@ if (
       next();
     } catch (error) {
       console.error('Auth middleware error:', error);
-      return httpResponse.UNAUTHORIZED(
-        res,
-        {},
-        ErrorCodesMeta.UNAUTHORIZED.message
-      );
+      return httpResponse.UNAUTHORIZED(res, {}, ErrorCodesMeta.UNAUTHORIZED.message);
     }
   };
 };
