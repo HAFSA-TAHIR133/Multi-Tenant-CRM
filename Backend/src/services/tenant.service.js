@@ -1,4 +1,4 @@
-import { Tenant } from '../models/index.js';
+import { Tenant,sequelize, User, LeadHistory, Lead, Task, Stage, Pipeline, RefreshToken } from '../models/index.js';
 import { ErrorCodesMeta } from '../constants/error-codes.js';
 import { UserRole } from '../constants/user-roles.js';
 
@@ -124,7 +124,26 @@ const TenantService = {
     return tenant;
   },
 
- async deleteTenant(id, user) {
+//  async deleteTenant(id, user) {
+//   if (user?.role && user.role !== UserRole.SUPERADMIN) {
+//     const err = new Error('Access denied: Only Super Admin can delete tenants');
+//     err.code = ErrorCodesMeta.FORBIDDEN.code;
+//     throw err;
+//   }
+
+//   const tenant = await Tenant.findByPk(id);
+//   if (!tenant) {
+//     const err = new Error('Tenant not found');
+//     err.code = ErrorCodesMeta.NOT_FOUND.code;
+//     throw err;
+//   }
+
+//   await tenant.destroy({ hooks: false });
+  
+//   return { id, deleted: true };
+// }
+
+async deleteTenant(id, user) {
   if (user?.role && user.role !== UserRole.SUPERADMIN) {
     const err = new Error('Access denied: Only Super Admin can delete tenants');
     err.code = ErrorCodesMeta.FORBIDDEN.code;
@@ -138,8 +157,28 @@ const TenantService = {
     throw err;
   }
 
-  await tenant.destroy({ hooks: false });
-  
+  // Wrap everything inside a database transaction
+  await sequelize.transaction(async (transaction) => {
+    // 1. Delete dependent child records first
+    await LeadHistory.destroy({ where: { tenantId: id }, transaction });
+    await Task.destroy({ where: { tenantId: id }, transaction });
+    await Lead.destroy({ where: { tenantId: id }, transaction });
+    await Stage.destroy({ where: { tenantId: id }, transaction });
+    await Pipeline.destroy({ where: { tenantId: id }, transaction });
+    
+    // 2. Delete Users and associated auth tokens
+    const users = await User.findAll({ where: { tenantId: id }, attributes: ['id'], transaction });
+    const userIds = users.map((u) => u.id);
+
+    if (userIds.length > 0) {
+      await RefreshToken.destroy({ where: { userId: userIds }, transaction });
+      await User.destroy({ where: { tenantId: id }, transaction });
+    }
+
+    // 3. Delete the Tenant record last
+    await tenant.destroy({ transaction });
+  });
+
   return { id, deleted: true };
 }
 };
