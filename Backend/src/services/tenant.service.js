@@ -124,23 +124,24 @@ const TenantService = {
     return tenant;
   },
 
-  async deleteTenant(id, user) {
-    if (user?.role && user.role !== UserRole.SUPERADMIN) {
-      const err = new Error('Access denied: Only Super Admin can delete tenants');
-      err.code = ErrorCodesMeta.FORBIDDEN.code;
-      throw err;
-    }
-
-    const tenant = await Tenant.findByPk(id);
-    if (!tenant) {
-      const err = new Error('Tenant not found');
-      err.code = ErrorCodesMeta.NOT_FOUND.code;
-      throw err;
-    }
-
-    await tenant.destroy();
-    return { id, deleted: true };
+ async deleteTenant(id, user) {
+  if (user?.role && user.role !== UserRole.SUPERADMIN) {
+    const err = new Error('Access denied: Only Super Admin can delete tenants');
+    err.code = ErrorCodesMeta.FORBIDDEN.code;
+    throw err;
   }
+
+  const tenant = await Tenant.findByPk(id);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
+    err.code = ErrorCodesMeta.NOT_FOUND.code;
+    throw err;
+  }
+
+  await tenant.destroy({ hooks: false });
+  
+  return { id, deleted: true };
+}
 };
 
 export default TenantService;
