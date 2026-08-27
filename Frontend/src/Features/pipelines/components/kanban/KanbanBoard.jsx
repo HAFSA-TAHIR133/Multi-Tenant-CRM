@@ -4,7 +4,6 @@ import {
   ScrollArea,
   Text,
   ActionIcon,
-  Tooltip,
   Modal,
   Button,
   Stack,
@@ -62,92 +61,77 @@ function DraggableStage({
       ref={setNodeRef}
       style={{
         ...style,
-        width: 280,
-        minWidth: 280,
-        flex: '0 0 280px',
+        width: 300,
+        minWidth: 300,
+        flex: '0 0 300px',
       }}
     >
       <div
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex flex-col"
+        className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col shadow-xs overflow-hidden"
         style={{
           maxHeight: 'calc(100vh - 220px)',
         }}
       >
-        {/* ---- header ---- */}
-        <div
-          className="border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5"
-          style={{
-            padding: '10px 10px 8px',
-          }}
-        >
-          {/* drag handle */}
-          <span
-            {...attributes}
-            {...listeners}
-            className="text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 cursor-grab flex items-center flex-shrink-0 touch-none"
-          >
-            <IconGripVertical size={14} />
-          </span>
+        {/* ---- Header ---- */}
+        <div className="px-4 py-3.5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Drag Grip Handle */}
+            <button
+              type="button"
+              {...attributes}
+              {...listeners}
+              className="text-slate-300 dark:text-slate-600 hover:text-slate-400 cursor-grab flex items-center flex-shrink-0 touch-none border-none bg-transparent p-0"
+            >
+              <IconGripVertical size={16} />
+            </button>
 
-          {/* colour dot */}
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              backgroundColor: stage.color || '#111',
-              flexShrink: 0,
-            }}
-          />
+            {/* Stage Indicator Dot */}
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: stage.color || '#22c55e' }}
+            />
 
-          {/* name */}
-          <span
-            className="font-semibold text-xs text-slate-800 dark:text-slate-100 flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
-          >
-            {stage.name}
-          </span>
+            {/* Stage Title */}
+            <span className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">
+              {stage.name}
+            </span>
+          </div>
 
-          {/* count badge */}
-          <span
-            className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full flex-shrink-0 leading-4"
-          >
-            {leads?.length || 0}
-          </span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Count Badge */}
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-0.5 rounded-full min-w-[22px] text-center">
+              {leads?.length || 0}
+            </span>
 
-          {/* actions */}
-          {canManage && (
-            <div style={{ display: 'flex', gap: 0, marginLeft: 2, flexShrink: 0 }}>
-              <Tooltip label="Edit" withArrow position="top">
-                <ActionIcon
-                  variant="subtle"
-                  size="xs"
-                  className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
+            {/* Edit / Delete Actions */}
+            {canManage && (
+              <div className="flex items-center gap-1 text-slate-400">
+                <button
+                  type="button"
                   onClick={() => onEditStage?.(stage)}
+                  className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-0.5 border-none bg-transparent cursor-pointer"
                 >
-                  <IconPencil size={13} />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Delete" withArrow position="top">
-                <ActionIcon
-                  variant="subtle"
-                  size="xs"
-                  className="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400"
+                  <IconPencil size={15} />
+                </button>
+                <button
+                  type="button"
                   onClick={() => onDeleteStage?.(stage)}
+                  className="hover:text-red-500 transition-colors p-0.5 border-none bg-transparent cursor-pointer"
                 >
-                  <IconTrash size={13} />
-                </ActionIcon>
-              </Tooltip>
-            </div>
-          )}
+                  <IconTrash size={15} />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* ---- cards ---- */}
+        {/* ---- Content / Cards ---- */}
         <ScrollArea style={{ flex: 1 }} scrollbarSize={6}>
           <SortableContext
             items={leadIds}
             strategy={verticalListSortingStrategy}
           >
-            <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="p-3 flex flex-col gap-3 min-h-[140px]">
               {(leads || []).map((lead) => (
                 <DraggableLeadCard
                   key={lead.id}
@@ -155,16 +139,16 @@ function DraggableStage({
                   onClick={() => onLeadClick(lead)}
                 />
               ))}
+
+              {(!leads || leads.length === 0) && (
+                <div className="flex items-center justify-center py-10">
+                  <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
+                    No leads
+                  </span>
+                </div>
+              )}
             </div>
           </SortableContext>
-
-          {(!leads || leads.length === 0) && (
-            <div style={{ padding: '24px 0', textAlign: 'center' }}>
-              <span className="text-xs text-slate-400 dark:text-slate-500">
-                No leads
-              </span>
-            </div>
-          )}
         </ScrollArea>
       </div>
     </div>
@@ -187,19 +171,17 @@ function DraggableLeadCard({ lead, onClick }) {
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className="bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-md p-3 cursor-grab touch-none transition-colors"
+      className="bg-white dark:bg-slate-800/90 hover:bg-slate-50/50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl p-4 cursor-grab touch-none transition-all shadow-xs"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.4 : 1,
       }}
     >
-      <div
-        className="font-semibold text-xs text-slate-800 dark:text-slate-100 overflow-hidden text-ellipsis whitespace-nowrap"
-      >
+      <div className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
         {lead.contactName || lead.title || `${lead.companyName || 'Company'} – Contact`}
       </div>
-      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+      <div className="text-xs text-slate-400 dark:text-slate-400 mt-1 font-medium truncate">
         {lead.companyName || 'No company'}
         {lead.value ? ` · $${lead.value}` : ''}
       </div>
@@ -239,7 +221,6 @@ export default function KanbanBoard({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  // Filter leads based on localLeads state
   const grouped = useMemo(() => {
     const map = {};
     localStages.forEach((s) => {
@@ -287,7 +268,6 @@ export default function KanbanBoard({
       const activeId = String(active.id);
       const overId = String(over.id);
 
-      /* ---- stage reorder ---- */
       if (activeId.startsWith('stage-') && overId.startsWith('stage-')) {
         const sId = activeId.replace('stage-', '');
         const oId = overId.replace('stage-', '');
@@ -381,9 +361,7 @@ export default function KanbanBoard({
 
   return (
     <>
-      <div
-        className="bg-slate-100/70 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 rounded-xl p-3 min-h-[calc(100vh-240px)] transition-colors"
-      >
+      <div className=" rounded-2xl p-2 min-h-[calc(100vh-240px)] transition-colors">
         <DndContext
           sensors={sensors}
           collisionDetection={pointerWithin}
@@ -394,16 +372,7 @@ export default function KanbanBoard({
               items={stageItems}
               strategy={horizontalListSortingStrategy}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 10,
-                  alignItems: 'flex-start',
-                  minHeight: 'calc(100vh - 270px)',
-                  paddingRight: 8,
-                  paddingBottom: 8,
-                }}
-              >
+              <div className="flex gap-4 items-start min-h-[calc(100vh-290px)] pr-2 pb-2">
                 {localStages.map((stage) => (
                   <DraggableStage
                     key={stage.id}
@@ -421,7 +390,7 @@ export default function KanbanBoard({
         </DndContext>
       </div>
 
-      {/* ---- delete confirmation ---- */}
+      {/* Delete Confirmation Modal */}
       <Modal
         opened={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
@@ -433,7 +402,7 @@ export default function KanbanBoard({
         centered
         size="xs"
         styles={{
-          content: { borderRadius: 12 },
+          content: { borderRadius: 16 },
         }}
         className="dark:[&_.mantine-Paper-root]:bg-slate-900 dark:[&_.mantine-Paper-root]:border-slate-800"
       >
@@ -451,7 +420,7 @@ export default function KanbanBoard({
               onClick={() => setDeleteConfirm(null)}
               disabled={deletingStageId === deleteConfirm?.id}
               size="xs"
-              className="dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
+              className="rounded-lg dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
             >
               Cancel
             </Button>
@@ -460,6 +429,7 @@ export default function KanbanBoard({
               onClick={confirmDeleteStage}
               loading={deletingStageId === deleteConfirm?.id}
               size="xs"
+              className="rounded-lg"
             >
               Delete
             </Button>

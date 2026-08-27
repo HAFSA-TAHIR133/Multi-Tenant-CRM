@@ -8,7 +8,12 @@ const unwrap = async (promise) => {
 export const dashboardApi = {
   // Superadmin
   getStats: () => unwrap(fetchApi('/dashboard/stats')),
-  getTenantsChart: () => unwrap(fetchApi('/dashboard/tenants-chart')),
+  getTenantsChart: (period = 'This Week') => {
+    const params = typeof period === 'string' ? { period } : period;
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/dashboard/tenants-chart?${queryString}` : '/dashboard/tenants-chart';
+    return unwrap(fetchApi(endpoint));
+  },
   getTenantStatusChart: () => unwrap(fetchApi('/dashboard/tenant-status-chart')),
   getRecentUsers: () => unwrap(fetchApi('/dashboard/recent-users')),
   getRecentTenants: () => unwrap(fetchApi('/dashboard/recent-tenants')),
@@ -26,8 +31,6 @@ export const dashboardApi = {
 
   // User
   getUserStats: () => unwrap(fetchApi('/dashboard/user/stats')),
-  
-  // Updated to handle 'period' or 'params' via fetchApiHelper
   getUserLineChart: (period = 'This Week') => {
     const params = typeof period === 'string' ? { period } : period;
     const queryString = new URLSearchParams(params).toString();

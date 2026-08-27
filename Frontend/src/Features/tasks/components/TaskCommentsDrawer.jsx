@@ -7,7 +7,6 @@ import {
   Pencil,
   Trash2,
   Calendar as CalendarIcon,
-  User as UserIcon,
   ChevronDown,
   ChevronUp,
   Paperclip,
@@ -15,21 +14,18 @@ import {
   Download,
   Eye,
   Loader2,
+  Plus,
 } from "lucide-react";
 import DOMPurify from "dompurify";
 import { notesApi } from "../api/notesApi";
 import { documentsApi } from "../api/documentsApi";
-// React FilePond Imports
 import { FilePond, registerPlugin } from "react-filepond";
 import "filepond/dist/filepond.min.css";
 import FilePondPluginImagePreview from "filepond-plugin-image-preview";
 import "filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css";
 import FilePondPluginFileValidateType from "filepond-plugin-file-validate-type";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import DocumentPreviewModal from "@/components/ui/DocumentPreviewModal";
-// shadcn UI AlertDialog
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,7 +37,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// Register FilePond Plugins
 registerPlugin(FilePondPluginImagePreview, FilePondPluginFileValidateType);
 
 export default function TaskCommentsDrawer({
@@ -59,48 +54,39 @@ export default function TaskCommentsDrawer({
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showDetails, setShowDetails] = useState(true);
-
-  // Documents State
   const [showDocuments, setShowDocuments] = useState(true);
   const [documents, setDocuments] = useState([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [deletingDocId, setDeletingDocId] = useState(null);
-
-  // Document Delete Confirmation Dialog State
   const [docToDelete, setDocToDelete] = useState(null);
-
-  // FilePond state & refs
   const [pondFiles, setPondFiles] = useState([]);
   const pondRef = useRef(null);
   const fileInputRef = useRef(null);
-
-  // Track active upload abort controllers (keyed by file.name)
   const activeControllersRef = useRef(new Map());
-
-  // Preview Modal State
   const [previewDoc, setPreviewDoc] = useState(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-
   const scrollRef = useRef(null);
 
   const isCompleted =
     task?.status?.toLowerCase() === "completed" ||
     task?.status?.toLowerCase() === "done";
 
-  // Fetch comments
   useEffect(() => {
     if (!task?.id) return;
+
     let cancelled = false;
 
     (async () => {
       setLoading(true);
+
       try {
         const res = await notesApi.getNotesForTask(task.id);
         const list = Array.isArray(res?.data)
           ? res.data
           : Array.isArray(res)
-          ? res
-          : [];
+            ? res
+            : [];
+
         if (!cancelled) setNotes(list);
       } catch (err) {
         console.error("Failed to load task comments:", err);
@@ -114,20 +100,22 @@ export default function TaskCommentsDrawer({
     };
   }, [task?.id]);
 
-  // Fetch documents
   useEffect(() => {
     if (!task?.id) return;
+
     let cancelled = false;
 
     (async () => {
       setDocsLoading(true);
+
       try {
         const res = await documentsApi.getDocumentsForTask(task.id);
         const docList = Array.isArray(res?.data)
           ? res.data
           : Array.isArray(res)
-          ? res
-          : [];
+            ? res
+            : [];
+
         if (!cancelled) setDocuments(docList);
       } catch (err) {
         console.error("Failed to load task documents:", err);
@@ -149,7 +137,9 @@ export default function TaskCommentsDrawer({
 
   const handlePostComment = async () => {
     if (!commentText.trim() || submitting || !task?.id) return;
+
     setSubmitting(true);
+
     try {
       const payload = {
         taskId: Number(task.id),
@@ -157,15 +147,20 @@ export default function TaskCommentsDrawer({
         content: commentText.trim(),
         text: commentText.trim(),
       };
+
       const res = await notesApi.createNote(task.id, payload);
       const created = res?.data || res;
+
       if (created) {
-        const hydratedNote = {
-          ...created,
-          creator: created.creator || created.user || currentUser,
-        };
-        setNotes((prev) => [...prev, hydratedNote]);
+        setNotes((prev) => [
+          ...prev,
+          {
+            ...created,
+            creator: created.creator || created.user || currentUser,
+          },
+        ]);
       }
+
       setCommentText("");
     } catch (err) {
       console.error("Failed to post comment:", err);
@@ -175,20 +170,19 @@ export default function TaskCommentsDrawer({
   };
 
   const handlePaperclipClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    fileInputRef.current?.click();
   };
 
   const handleNativeFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
+
     if (files.length > 0) {
       setPondFiles(files);
     }
+
     e.target.value = "";
   };
 
-  // FilePond Process logic (abort/cancel wired properly)
   const handlePondProcess = (
     fieldName,
     file,
@@ -206,10 +200,7 @@ export default function TaskCommentsDrawer({
     const controller = new AbortController();
     const fileName = file.name;
 
-    // Track controller by file name
     activeControllersRef.current.set(fileName, controller);
-
-    // Initialize progress (0 → 100)
     progress(true, 0, 100);
 
     documentsApi
@@ -223,21 +214,24 @@ export default function TaskCommentsDrawer({
       })
       .then((newDoc) => {
         activeControllersRef.current.delete(fileName);
+
         if (newDoc) {
           setDocuments((prev) => [newDoc, ...prev]);
           load(newDoc.id || newDoc._id || "uploaded");
-          // Clear FilePond selection after a short delay
-          setTimeout(() => setPondFiles([]), 600);
+
+          setTimeout(() => {
+            setPondFiles([]);
+          }, 600);
         }
       })
       .catch((err) => {
         activeControllersRef.current.delete(fileName);
+
         if (
           err.name === "CanceledError" ||
           err.name === "AbortError" ||
           err.code === "ERR_CANCELED"
         ) {
-          // Upload was cancelled
           abort();
         } else {
           console.error("FilePond upload failed:", err);
@@ -245,7 +239,6 @@ export default function TaskCommentsDrawer({
         }
       });
 
-    // Provide abort handler to FilePond (built-in cancel)
     return {
       abort: () => {
         controller.abort();
@@ -257,38 +250,34 @@ export default function TaskCommentsDrawer({
 
   const handleFileRemove = (error, fileItem) => {
     const fileName = fileItem?.file?.name;
-    if (fileName && activeControllersRef.current.has(fileName)) {
-      const controller = activeControllersRef.current.get(fileName);
-      controller.abort();
+
+    if (
+      fileName &&
+      activeControllersRef.current.has(fileName)
+    ) {
+      activeControllersRef.current.get(fileName).abort();
       activeControllersRef.current.delete(fileName);
     }
-    // Clear FilePond selection when user removes the file
+
     setPondFiles([]);
   };
 
-  // Custom small cross button over the upload box
   const handleCustomUploadCancel = () => {
-    // Abort all active controllers
     activeControllersRef.current.forEach((controller) => {
       controller.abort();
     });
-    activeControllersRef.current.clear();
 
-    // Clear FilePond files
+    activeControllersRef.current.clear();
     setPondFiles([]);
 
-    // If we want to also clear internal FilePond items, do it defensively
-    if (pondRef.current) {
-      try {
-        pondRef.current.removeFiles && pondRef.current.removeFiles();
-      } catch {
-        // ignore
-      }
-    }
+    try {
+      pondRef.current?.removeFiles?.();
+    } catch {}
   };
 
   const confirmDeleteDocument = async (e) => {
     if (e) e.preventDefault();
+
     if (!docToDelete || !task?.id) return;
 
     const docId = docToDelete.id || docToDelete._id;
@@ -296,7 +285,11 @@ export default function TaskCommentsDrawer({
 
     try {
       await documentsApi.deleteTaskDocument(task.id, docId);
-      setDocuments((prev) => prev.filter((d) => (d.id || d._id) !== docId));
+
+      setDocuments((prev) =>
+        prev.filter((doc) => (doc.id || doc._id) !== docId)
+      );
+
       setDocToDelete(null);
     } catch (err) {
       console.error("Failed to delete document:", err);
@@ -309,6 +302,7 @@ export default function TaskCommentsDrawer({
     const isImageOrPdf = /\.(jpg|jpeg|png|webp|gif|svg|pdf)$/i.test(
       doc.name || doc.url
     );
+
     if (isImageOrPdf) {
       setPreviewDoc(doc);
       setIsPreviewOpen(true);
@@ -319,7 +313,10 @@ export default function TaskCommentsDrawer({
 
   const toggleTaskCompletion = () => {
     if (!onUpdateTask || !task?.id) return;
-    onUpdateTask(task.id, { status: isCompleted ? "pending" : "completed" });
+
+    onUpdateTask(task.id, {
+      status: isCompleted ? "pending" : "completed",
+    });
   };
 
   const handleKeyDown = (e) => {
@@ -331,7 +328,9 @@ export default function TaskCommentsDrawer({
 
   const getInitials = (nameStr) => {
     if (!nameStr) return "U";
+
     const parts = nameStr.trim().split(" ");
+
     return parts.length >= 2
       ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
       : nameStr.slice(0, 2).toUpperCase();
@@ -341,65 +340,111 @@ export default function TaskCommentsDrawer({
     if (role === 2 || role === "ADMIN") return "Admin";
     if (role === 1 || role === "USER") return "User";
     if (role === 3 || role === "SUPER_ADMIN") return "Super Admin";
+
     return "Member";
   };
 
   const getAssignedUserInfo = () => {
-    if (!task) return { name: "Unassigned", avatar: null };
+    if (!task) {
+      return {
+        name: "Unassigned",
+        avatar: null,
+      };
+    }
+
     const foundUser = users.find(
-      (u) =>
-        String(u.id || u._id) ===
+      (user) =>
+        String(user.id || user._id) ===
         String(
-          task.assignedUserId || task.assignedTo || task.assignedUser?.id
+          task.assignedUserId ||
+            task.assignedTo ||
+            task.assignedUser?.id
         )
     );
+
     if (foundUser) {
       const profile = foundUser.profile;
+
       const fullName = profile?.firstName
         ? `${profile.firstName} ${profile.lastName || ""}`.trim()
         : "";
+
       return {
         name:
-          fullName || foundUser.name || foundUser.email || "Assigned User",
+          fullName ||
+          foundUser.name ||
+          foundUser.email ||
+          "Assigned User",
         avatar:
-          profile?.avatar || foundUser.avatarUrl || foundUser.avatar,
+          profile?.avatar ||
+          foundUser.avatarUrl ||
+          foundUser.avatar,
       };
     }
-    return { name: "Unassigned", avatar: null };
+
+    return {
+      name: "Unassigned",
+      avatar: null,
+    };
   };
 
-  const { name: assignedName, avatar: assignedAvatar } = getAssignedUserInfo();
+  const {
+    name: assignedName,
+    avatar: assignedAvatar,
+  } = getAssignedUserInfo();
 
   const getPriorityBadgeClass = (priority) => {
     switch (priority?.toLowerCase()) {
       case "high":
-        return "bg-red-50 text-red-700 border-red-200/70 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/50";
+        return "bg-red-50 text-red-600 border-red-100";
+
       case "medium":
       case "normal":
-        return "bg-amber-50 text-amber-700 border-amber-200/70 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50";
+        return "bg-amber-50 text-amber-700 border-amber-100";
+
       default:
-        return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
+        return "bg-slate-100 text-slate-600 border-slate-200";
     }
+  };
+
+  const formatDueDate = (date) => {
+    if (!date) return "No date";
+
+    return new Date(date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
   };
 
   return (
     <>
       <style>{`
         .filepond--action-process-item {
-          background-color: rgba(16, 185, 129, 0.15) !important;
+          background-color: rgba(100, 116, 139, 0.12) !important;
         }
+
         .filepond--file-action-button {
           cursor: pointer !important;
         }
+
         .filepond--progress-indicator svg {
-          stroke: #10b981 !important;
+          stroke: #64748b !important;
         }
+
         .filepond--file-status {
-          color: #10b981 !important;
+          color: #64748b !important;
+        }
+
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
 
-      {/* Hidden Native File Input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -408,252 +453,349 @@ export default function TaskCommentsDrawer({
       />
 
       {/* Overlay */}
-      <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/50 backdrop-blur-[2px] animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-[2px] animate-in fade-in duration-200">
         <div className="flex-1 cursor-pointer" onClick={onClose} />
 
-        {/* Drawer panel */}
-        <div className="w-full max-w-md h-full flex flex-col bg-white shadow-2xl border-l border-slate-200/80 animate-in slide-in-from-right duration-300 dark:bg-slate-950 dark:border-slate-800">
+        {/* Drawer */}
+        <div className="w-full max-w-[420px] h-full flex flex-col bg-white dark:bg-slate-950 shadow-2xl border-l border-slate-200/80 dark:border-slate-800 overflow-hidden animate-in slide-in-from-right duration-300">
           {/* Header */}
-          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800/80 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0 pt-0.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                  Task
-                </p>
-                <h2
-                  className={`font-semibold text-[15px] leading-snug line-clamp-2 ${
-                    isCompleted
-                      ? "line-through text-slate-400"
-                      : "text-slate-900 dark:text-slate-100"
-                  }`}
+          <div className="px-5 pt-4 pb-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            {/* Top row: Task badge + actions */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                <svg
+                  className="h-3 w-3"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
                 >
-                  {task?.title || `Task #${task?.id}`}
-                </h2>
-              </div>
-              <div className="flex items-center gap-0.5 shrink-0">
-                {onUpdateTask && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className={`h-8 w-8 rounded-lg ${
-                      isCompleted
-                        ? "text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                        : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                    }`}
-                    onClick={toggleTaskCompletion}
-                    title={isCompleted ? "Mark as pending" : "Mark as completed"}
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                )}
+                  <path
+                    d="M2 4h12M2 8h12M2 12h8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                Task
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={toggleTaskCompletion}
+                  className={`h-8 w-8 rounded-lg flex items-center justify-center border transition-colors ${
+                    isCompleted
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                  }`}
+                  title={
+                    isCompleted
+                      ? "Mark as pending"
+                      : "Mark as completed"
+                  }
+                  aria-label={
+                    isCompleted
+                      ? "Mark task as pending"
+                      : "Mark task as completed"
+                  }
+                >
+                  <Check
+                    className="h-4 w-4"
+                    strokeWidth={2.5}
+                  />
+                </button>
+
                 {onEditTask && !isRegularUser && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  <button
+                    type="button"
                     onClick={() => onEditTask(task)}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    title="Edit task"
                   >
                     <Pencil className="h-3.5 w-3.5" />
-                  </Button>
+                  </button>
                 )}
+
                 {onDeleteTask && !isRegularUser && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  <button
+                    type="button"
                     onClick={() => {
                       onDeleteTask(task);
                       onClose();
                     }}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                    title="Delete task"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  </button>
                 )}
-                <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1.5" />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800"
+
+                <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
+                <button
+                  type="button"
                   onClick={onClose}
+                  className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  title="Close"
                 >
                   <X className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
+            </div>
+
+            {/* Title */}
+            <h2
+              className={`text-[17px] font-semibold leading-snug text-slate-900 dark:text-slate-100 mb-2.5 ${
+                isCompleted ? "line-through text-slate-400" : ""
+              }`}
+            >
+              {task?.title || `Task #${task?.id}`}
+            </h2>
+
+            {/* Status + Due */}
+            <div className="flex items-center gap-2.5 text-[13px]">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium ${
+                  isCompleted
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-amber-50 text-amber-700"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    isCompleted
+                      ? "bg-emerald-500"
+                      : "bg-amber-500"
+                  }`}
+                />
+
+                {isCompleted ? "Completed" : "Pending"}
+              </span>
+
+              <span className="text-slate-400">·</span>
+
+              <span className="text-slate-500 dark:text-slate-400">
+                Due {formatDueDate(task?.dueDate)}
+              </span>
             </div>
           </div>
 
-          {/* Task Details */}
-          <div className="border-b border-slate-100 dark:border-slate-800/80">
-            <button
-              onClick={() => setShowDetails(!showDetails)}
-              className="w-full px-5 py-2.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
-            >
-              <span>Task Information</span>
-              {showDetails ? (
-                <ChevronUp className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5" />
-              )}
-            </button>
-            {showDetails && (
-              <div className="px-5 pb-4 space-y-3">
-                {task?.description && (
-                  <div
-                    className="text-[12px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800 leading-relaxed prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(task.description),
-                    }}
-                  />
+          {/* Scrollable content */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scrollbar-hide"
+          >
+            {/* Task Information */}
+            <div className="border-b border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="w-full px-5 py-3 flex items-center justify-between text-[13px] font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition-colors"
+              >
+                <span>Task Information</span>
+
+                {showDetails ? (
+                  <ChevronUp className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
                 )}
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 p-2.5 space-y-1.5">
-                    <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400 block">
-                      Priority
-                    </span>
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold border capitalize ${getPriorityBadgeClass(
-                        task?.priority
-                      )}`}
-                    >
-                      {task?.priority || "Low"}
-                    </span>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 p-2.5 space-y-1.5">
-                    <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400 block">
-                      Assigned
-                    </span>
-                    <div className="flex items-center gap-1.5 truncate">
-                      <Avatar className="h-5 w-5 shrink-0 ring-1 ring-slate-200 dark:ring-slate-700">
-                        <AvatarImage src={assignedAvatar} />
-                        <AvatarFallback className="text-[8px] bg-indigo-50 text-indigo-600 font-bold dark:bg-indigo-950/40">
-                          <UserIcon className="h-2.5 w-2.5" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-[11px] text-slate-700 dark:text-slate-300 font-medium truncate">
-                        {assignedName}
+              </button>
+
+              {showDetails && (
+                <div className="px-5 pb-4 space-y-3">
+                  {task?.description ? (
+                    <div
+                      className="text-[13px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 leading-relaxed prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: DOMPurify.sanitize(
+                          task.description
+                        ),
+                      }}
+                    />
+                  ) : (
+                    <div className="h-10 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800" />
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {/* Priority */}
+                    <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-3 py-2.5">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 mb-1.5 m-0">
+                        Priority
+                      </p>
+
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-md text-[12px] font-medium border capitalize ${getPriorityBadgeClass(
+                          task?.priority
+                        )}`}
+                      >
+                        {task?.priority || "Low"}
                       </span>
                     </div>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 p-2.5 space-y-1.5">
-                    <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400 block">
-                      Due Date
-                    </span>
-                    <div className="flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium">
-                      <CalendarIcon className="h-3 w-3 text-slate-400 shrink-0" />
-                      <span className="truncate">
-                        {task?.dueDate
-                          ? new Date(task.dueDate).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })
-                          : "No date"}
-                      </span>
+
+                    {/* Assigned */}
+                    <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-3 py-2.5">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 mb-1.5 m-0">
+                        Assigned
+                      </p>
+
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-semibold text-slate-600 dark:text-slate-300">
+                          {getInitials(assignedName)}
+                        </div>
+
+                        <span className="text-[12px] font-medium text-slate-800 dark:text-slate-100 truncate">
+                          {assignedName}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Due Date */}
+                    <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-3 py-2.5">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 mb-1.5 m-0">
+                        Due Date
+                      </p>
+
+                      <div className="flex items-center gap-1 text-[12px] font-medium text-slate-800 dark:text-slate-100">
+                        <CalendarIcon className="h-3 w-3 text-slate-400 shrink-0" />
+                        <span className="truncate">
+                          {formatDueDate(task?.dueDate)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Task Documents */}
-          <div className="border-b border-slate-100 dark:border-slate-800/80">
-            <button
-              onClick={() => setShowDocuments(!showDocuments)}
-              className="w-full px-5 py-2.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <Paperclip className="h-3.5 w-3.5 text-indigo-500" />
-                <span>Documents</span>
-                {documents.length > 0 && (
-                  <span className="text-[10px] bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 px-1.5 py-0.5 rounded-full font-bold tabular-nums">
-                    {documents.length}
-                  </span>
-                )}
-              </div>
-              {showDocuments ? (
-                <ChevronUp className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5" />
               )}
-            </button>
-            {showDocuments && (
-              <div className="px-5 pb-3.5 space-y-2">
-                {docsLoading ? (
-                  <div className="flex items-center gap-2 py-2 text-[11px] text-slate-400">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Loading files...
-                  </div>
-                ) : documents.length === 0 ? (
-                  <p className="text-[11px] text-slate-400 italic py-1.5">
-                    No documents attached yet.
-                  </p>
-                ) : (
-                  <div className="space-y-1.5 max-h-44 overflow-y-auto pr-0.5 scrollbar-thin">
-                    {documents.map((doc) => {
+            </div>
+
+            {/* Documents */}
+            <div className="border-b border-slate-100 dark:border-slate-800">
+              <div className="px-5 py-3 flex items-center justify-between">
+                <button
+                  onClick={() =>
+                    setShowDocuments(!showDocuments)
+                  }
+                  className="flex items-center gap-2 text-[13px] font-semibold text-slate-800 dark:text-slate-200 hover:text-slate-600 transition-colors"
+                >
+                  <Paperclip className="h-3.5 w-3.5 text-slate-500" />
+
+                  <span>Documents</span>
+
+                  {documents.length > 0 && (
+                    <span className="inline-flex h-5 min-w-[18px] items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 px-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      {documents.length}
+                    </span>
+                  )}
+
+                  {showDocuments ? (
+                    <ChevronUp className="h-3.5 w-3.5 text-slate-400 ml-0.5" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5 text-slate-400 ml-0.5" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePaperclipClick}
+                  className="h-7 px-2.5 rounded-lg text-[12px] font-medium flex items-center gap-1 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:!bg-blue-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  
+                >
+                  <Plus className="h-3 w-3" />
+                  Attach File
+                </button>
+              </div>
+
+              {showDocuments && (
+                <div className="px-5 pb-4 space-y-2">
+                  {docsLoading ? (
+                    <div className="flex items-center gap-2 py-3 text-[12px] text-slate-400">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading files...
+                    </div>
+                  ) : documents.length === 0 ? (
+                    <p className="text-[12px] text-slate-400 italic py-2 m-0">
+                      No documents attached yet.
+                    </p>
+                  ) : (
+                    documents.map((doc) => {
                       const docId = doc.id || doc._id;
+
                       const isImageOrPdf =
                         /\.(jpg|jpeg|png|webp|gif|svg|pdf)$/i.test(
                           doc.name || doc.url
                         );
+
                       const isDeleting = deletingDocId === docId;
+
                       return (
                         <div
-                          key={docId || Math.random()}
-                          className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-900/50 hover:bg-white dark:hover:bg-slate-900 transition-all group"
+                          key={docId}
+                          className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-colors"
                         >
                           <div
-                            onClick={() => handleDocumentClick(doc)}
+                            onClick={() =>
+                              handleDocumentClick(doc)
+                            }
                             className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
                           >
-                            <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center shrink-0">
-                              <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-150 dark:border-slate-700 text-slate-500">
+                              <FileText className="h-3.5 w-3.5" />
                             </div>
+
                             <div className="min-w-0">
-                              <p className="text-[12px] text-slate-700 dark:text-slate-200 font-medium truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                              <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100 truncate m-0">
                                 {doc.name}
                               </p>
+
                               {isImageOrPdf && (
-                                <span className="text-[9px] text-indigo-500 font-medium">
+                                <p className="text-[11px] text-slate-500 m-0 mt-0.5">
                                   Previewable
-                                </span>
+                                </p>
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-0.5 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
+
+                          <div className="flex items-center gap-0.5 shrink-0">
                             {isImageOrPdf && (
                               <button
-                                onClick={() => handleDocumentClick(doc)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors"
-                                title="Preview Document"
+                                onClick={() =>
+                                  handleDocumentClick(doc)
+                                }
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                title="Preview"
                               >
                                 <Eye className="h-3.5 w-3.5" />
                               </button>
                             )}
+
                             <button
                               onClick={() =>
-                                documentsApi.downloadDocument(doc.url, doc.name)
+                                documentsApi.downloadDocument(
+                                  doc.url,
+                                  doc.name
+                                )
                               }
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
-                              title="Download Document"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                              title="Download"
                             >
                               <Download className="h-3.5 w-3.5" />
                             </button>
+
                             <button
                               onClick={() => setDocToDelete(doc)}
-                              disabled={isRegularUser || isDeleting}
+                              disabled={
+                                isRegularUser || isDeleting
+                              }
                               className={`p-1.5 rounded-lg transition-colors ${
                                 isRegularUser
-                                  ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                                  ? "text-slate-300 cursor-not-allowed"
                                   : "text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
                               }`}
                               title={
                                 isRegularUser
-                                  ? "Only admins can delete documents"
-                                  : "Delete Document"
+                                  ? "Only admins can delete"
+                                  : "Delete"
                               }
                             >
                               {isDeleting ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
                                 <Trash2 className="h-3.5 w-3.5" />
                               )}
@@ -661,98 +803,121 @@ export default function TaskCommentsDrawer({
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Comments */}
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-950 z-10">
+              <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-800 dark:text-slate-200">
+                <span>Comments</span>
+
+                {notes.length > 0 && (
+                  <span className="inline-flex h-5 min-w-[18px] items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 px-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    {notes.length}
+                  </span>
                 )}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Comments Feed */}
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-slate-50/30 dark:bg-slate-950"
-          >
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-2">
-                <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
-                <p className="text-[11px] text-slate-400">Loading comments...</p>
-              </div>
-            ) : notes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-center">
-                <div className="h-12 w-12 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center mb-3">
-                  <MessageSquare className="h-5 w-5 text-slate-300 dark:text-slate-600" />
+            <div className="px-5 py-4 space-y-4 bg-slate-50/30 dark:bg-slate-950">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                  <p className="text-[12px] text-slate-400 m-0">
+                    Loading comments...
+                  </p>
                 </div>
-                <p className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
-                  No comments yet
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Start the conversation below.
-                </p>
-              </div>
-            ) : (
-              notes.map((note) => {
-                const creator =
-                  note.creator || note.user || note.author || currentUser;
-                const profile = creator?.profile;
-                const fullName =
-                  `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
-                const authorName =
-                  fullName ||
-                  creator?.name ||
-                  creator?.email?.split("@")[0] ||
-                  "User";
-                const authorRole = getRoleLabel(creator?.role);
-                return (
-                  <div
-                    key={note.id || note._id || Math.random()}
-                    className="flex gap-3"
-                  >
-                    <Avatar className="h-8 w-8 mt-0.5 shrink-0 ring-2 ring-white dark:ring-slate-900 shadow-sm">
-                      <AvatarImage
-                        src={profile?.avatar || creator?.avatarUrl}
-                      />
-                      <AvatarFallback className="text-[10px] bg-indigo-50 text-indigo-600 font-bold dark:bg-indigo-950/50">
+              ) : notes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="h-11 w-11 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center mb-3">
+                    <MessageSquare className="h-5 w-5 text-slate-300 dark:text-slate-600" />
+                  </div>
+
+                  <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 m-0">
+                    No comments yet
+                  </p>
+
+                  <p className="text-[12px] text-slate-400 mt-1 m-0">
+                    Start the conversation below.
+                  </p>
+                </div>
+              ) : (
+                notes.map((note) => {
+                  const creator =
+                    note.creator ||
+                    note.user ||
+                    note.author ||
+                    currentUser;
+
+                  const profile = creator?.profile;
+
+                  const fullName =
+                    `${profile?.firstName || ""} ${
+                      profile?.lastName || ""
+                    }`.trim();
+
+                  const authorName =
+                    fullName ||
+                    creator?.name ||
+                    creator?.email?.split("@")[0] ||
+                    "User";
+
+                  const authorRole = getRoleLabel(creator?.role);
+
+                  return (
+                    <div
+                      key={note.id || note._id}
+                      className="flex gap-3"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-0.5">
                         {getInitials(authorName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                          <span className="text-[12px] font-semibold text-slate-800 dark:text-slate-200 truncate">
-                            {authorName}
-                          </span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium dark:bg-slate-800 dark:text-slate-400 shrink-0">
-                            {authorRole}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 truncate">
+                              {authorName}
+                            </span>
+
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium shrink-0">
+                              {authorRole}
+                            </span>
+                          </div>
+
+                          <span className="text-[11px] text-slate-400 shrink-0 tabular-nums">
+                            {note.createdAt
+                              ? new Date(
+                                  note.createdAt
+                                ).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "Just now"}
                           </span>
                         </div>
-                        <span className="text-[10px] text-slate-400 shrink-0 tabular-nums">
-                          {note.createdAt
-                            ? new Date(note.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : "Just now"}
-                        </span>
-                      </div>
-                      <div className="text-[12px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-3 rounded-2xl rounded-tl-md border border-slate-100 dark:border-slate-800 leading-relaxed shadow-sm">
-                        {note.content || note.text}
+
+                        <div className="text-[13px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-3.5 py-2.5 rounded-xl border border-slate-100 dark:border-slate-800 leading-relaxed">
+                          {note.content || note.text}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
 
-          {/* Active FilePond Upload Box + custom cancel cross */}
+          {/* Active FilePond upload */}
           {pondFiles.length > 0 && (
-            <div className="px-4 pt-3 pb-1 bg-indigo-50/40 dark:bg-indigo-950/20 border-t border-indigo-100 dark:border-indigo-900/30 relative">
-              {/* Custom small cross on top-right of upload area */}
+            <div className="px-4 pt-2.5 pb-1 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 relative shrink-0">
               <button
                 type="button"
                 onClick={handleCustomUploadCancel}
-                className="absolute -top-2 right-3 h-5 w-5 flex items-center justify-center rounded-full bg-white text-slate-900 shadow-sm border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+                className="absolute -top-2 right-3 h-5 w-5 flex items-center justify-center rounded-full bg-white text-slate-700 shadow-sm border border-slate-200 hover:bg-slate-50"
                 title="Cancel upload"
               >
                 <X className="h-3 w-3" />
@@ -775,38 +940,44 @@ export default function TaskCommentsDrawer({
             </div>
           )}
 
-          {/* Footer input */}
-          <div className="px-4 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950">
-            <div className="flex gap-2 items-end">
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-10 w-10 shrink-0 rounded-xl border-slate-200 dark:border-slate-700 transition-all text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/50"
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
+            <div className="flex gap-2 items-center">
+              <button
+                type="button"
                 onClick={handlePaperclipClick}
-                title="Select File from Device"
+                className="h-9 w-9 shrink-0 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                title="Attach file"
               >
                 <Paperclip className="h-4 w-4" />
-              </Button>
-              <div className="flex flex-1 gap-2 items-end">
-                <Textarea
+              </button>
+
+              <div className="flex flex-1 gap-2 items-center">
+                <input
+                  type="text"
                   placeholder="Add a comment..."
                   value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
+                  onChange={(e) =>
+                    setCommentText(e.target.value)
+                  }
                   onKeyDown={handleKeyDown}
-                  className="min-h-[40px] max-h-[100px] h-10 py-2.5 px-3 text-[12px] bg-slate-50 dark:bg-slate-900 resize-none border-slate-200 dark:border-slate-700 focus-visible:ring-indigo-500 rounded-xl flex-1"
+                  className="flex-1 h-9 px-3.5 text-[13px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600 focus:border-transparent"
                 />
+
                 <Button
                   size="sm"
-                  className="h-10 px-3.5 rounded-xl text-[12px] gap-1.5 shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 dark:shadow-none disabled:opacity-50"
+                  className="h-9 px-4 rounded-full text-[13px] gap-1.5 shrink-0 bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-white shadow-sm disabled:opacity-50"
                   onClick={handlePostComment}
-                  disabled={submitting || !commentText.trim()}
+                  disabled={
+                    submitting || !commentText.trim()
+                  }
                 >
                   {submitting ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <>
-                      <span>Post</span>
-                      <Send className="h-3 w-3" />
+                      Post
+                      <Send className="h-3.5 w-3.5" />
                     </>
                   )}
                 </Button>
@@ -816,7 +987,6 @@ export default function TaskCommentsDrawer({
         </div>
       </div>
 
-      {/* Document Preview Modal */}
       <DocumentPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
@@ -824,7 +994,6 @@ export default function TaskCommentsDrawer({
         onDownload={documentsApi.downloadDocument}
       />
 
-      {/* Delete Document Confirmation Dialog */}
       <AlertDialog
         open={!!docToDelete}
         onOpenChange={(open) => {
@@ -835,34 +1004,40 @@ export default function TaskCommentsDrawer({
       >
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete document?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete document?
+            </AlertDialogTitle>
+
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete{" "}
+              This action cannot be undone. This will permanently
+              delete{" "}
               <strong className="text-slate-800 dark:text-slate-200">
                 {docToDelete?.name}
               </strong>
               .
             </AlertDialogDescription>
           </AlertDialogHeader>
+
           <AlertDialogFooter>
             <AlertDialogCancel
               disabled={!!deletingDocId}
-              className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-xl disabled:opacity-50"
             >
               Cancel
             </AlertDialogCancel>
+
             <AlertDialogAction
               onClick={confirmDeleteDocument}
               disabled={!!deletingDocId}
-              className="rounded-xl bg-red-600 text-white hover:bg-red-700 focus:ring-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              className="rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5"
             >
               {deletingDocId ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Deleting...</span>
+                  Deleting...
                 </>
               ) : (
-                <span>Delete</span>
+                "Delete"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

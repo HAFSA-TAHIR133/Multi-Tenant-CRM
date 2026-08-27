@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/dialog';
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -160,7 +159,7 @@ export default function UserFormDialog({
                     <Input
                       {...field}
                       id="user-name"
-                      placeholder="e.g. Jane Doe"
+                      placeholder="e.g. Hafsa"
                       aria-invalid={fieldState.invalid}
                     />
                     {fieldState.invalid && (
@@ -183,7 +182,7 @@ export default function UserFormDialog({
                       {...field}
                       id="user-email"
                       type="email"
-                      placeholder="jane@example.com"
+                      placeholder="email@example.com"
                       aria-invalid={fieldState.invalid}
                     />
                     {fieldState.invalid && (
@@ -279,7 +278,7 @@ export default function UserFormDialog({
                   render={({ field }) => (
                     <Field className="gap-1">
                       <FieldLabel htmlFor="user-firstName">First Name</FieldLabel>
-                      <Input id="user-firstName" placeholder="Jane" {...field} />
+                      <Input id="user-firstName" placeholder="Hafsa" {...field} />
                     </Field>
                   )}
                 />
@@ -289,7 +288,7 @@ export default function UserFormDialog({
                   render={({ field }) => (
                     <Field className="gap-1">
                       <FieldLabel htmlFor="user-lastName">Last Name</FieldLabel>
-                      <Input id="user-lastName" placeholder="Doe" {...field} />
+                      <Input id="user-lastName" placeholder="Tahir" {...field} />
                     </Field>
                   )}
                 />
@@ -302,7 +301,7 @@ export default function UserFormDialog({
                 render={({ field }) => (
                   <Field className="gap-1">
                     <FieldLabel htmlFor="user-phone">Phone Number</FieldLabel>
-                    <Input id="user-phone" placeholder="+1 (555) 000-0000" {...field} />
+                    <Input id="user-phone" placeholder="+92 300 5523179" {...field} />
                   </Field>
                 )}
               />

@@ -16,6 +16,7 @@ registerPlugin(
 import { useAuth } from "@/Features/auth/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { profileApi } from "./profileApi.jsx";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function ProfilePage() {
   const auth = useAuth() || {};
@@ -25,6 +26,10 @@ export default function ProfilePage() {
   const [fetching, setFetching] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
+
+  // Password visibility toggles
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -38,7 +43,6 @@ export default function ProfilePage() {
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
-    confirmPassword: "",
   });
 
   // Auto-clear success message after 4 seconds
@@ -123,20 +127,21 @@ export default function ProfilePage() {
     setMessage({ type: "", text: "" });
 
     const hasPasswordChange =
-      passwordData.currentPassword ||
-      passwordData.newPassword ||
-      passwordData.confirmPassword;
+      passwordData.currentPassword || passwordData.newPassword;
 
     if (hasPasswordChange) {
-      if (passwordData.newPassword !== passwordData.confirmPassword) {
-        setMessage({ type: "error", text: "New passwords do not match!" });
-        setLoading(false);
-        return;
-      }
       if (!passwordData.currentPassword) {
         setMessage({
           type: "error",
-          text: "Current password is required to change password.",
+          text: "Please enter your current password.",
+        });
+        setLoading(false);
+        return;
+      }
+      if (!passwordData.newPassword) {
+        setMessage({
+          type: "error",
+          text: "Please enter a new password.",
         });
         setLoading(false);
         return;
@@ -145,6 +150,14 @@ export default function ProfilePage() {
         setMessage({
           type: "error",
           text: "New password must be at least 6 characters.",
+        });
+        setLoading(false);
+        return;
+      }
+      if (passwordData.currentPassword === passwordData.newPassword) {
+        setMessage({
+          type: "error",
+          text: "New password must be different from current password.",
         });
         setLoading(false);
         return;
@@ -176,7 +189,6 @@ export default function ProfilePage() {
       setPasswordData({
         currentPassword: "",
         newPassword: "",
-        confirmPassword: "",
       });
     } catch (err) {
       console.error(err);
@@ -227,12 +239,11 @@ export default function ProfilePage() {
                 process: async (_fieldName, file, _metadata, load, error) => {
                   try {
                     const result = await profileApi.uploadAvatar(file);
-                    
-                    // Extracts string from varied API return shapes
-                    const newAvatar = 
-                      result?.avatar || 
-                      result?.data?.avatar || 
-                      result?.user?.avatar || 
+
+                    const newAvatar =
+                      result?.avatar ||
+                      result?.data?.avatar ||
+                      result?.user?.avatar ||
                       result?.data?.profile?.avatar ||
                       "";
 
@@ -242,7 +253,6 @@ export default function ProfilePage() {
 
                     load(newAvatar);
 
-                    // Broad update across user state schema properties
                     if (typeof setUser === "function") {
                       setUser((prev) => ({
                         ...prev,
@@ -369,34 +379,62 @@ export default function ProfilePage() {
 
             <div className="pt-4 border-t mt-2">
               <h3 className="text-base font-semibold mb-3">Change Password</h3>
-              <div className="space-y-4">
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-medium uppercase text-muted-foreground">
-                      New Password
-                    </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Current Password Field */}
+                <div>
+                  <label className="text-xs font-medium uppercase text-muted-foreground">
+                    Current Password
+                  </label>
+                  <div className="relative mt-1">
                     <input
-                      type="password"
+                      type={showCurrentPassword ? "text" : "password"}
+                      name="currentPassword"
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                      placeholder="Enter current password"
+                      className="w-full px-3 py-2 pr-10 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                    >
+                      {showCurrentPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password Field */}
+                <div>
+                  <label className="text-xs font-medium uppercase text-muted-foreground">
+                    New Password
+                  </label>
+                  <div className="relative mt-1">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
                       name="newPassword"
                       value={passwordData.newPassword}
                       onChange={handlePasswordChange}
-                      className="w-full mt-1 px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      placeholder="Enter new password"
+                      className="w-full px-3 py-2 pr-10 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                       autoComplete="new-password"
                     />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium uppercase text-muted-foreground">
-                      Confirm New Password
-                    </label>
-                    <input
-                      type="password"
-                      name="confirmPassword"
-                      value={passwordData.confirmPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full mt-1 px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      autoComplete="new-password"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                    >
+                      {showNewPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>

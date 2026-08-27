@@ -5,13 +5,10 @@ import { ROLES } from '@/constants/roles';
 import { leadsApi } from '../api/leadsApi';
 import { pipelinesApi } from '@/Features/pipelines/api/pipelinesApi';
 import { toast } from 'sonner';
-
-// Custom Dialog Components
 import LeadHistoryDrawer from '../components/LeadHistoryDrawer';
 import EditLeadDialog from '../components/EditLeadDialog';
 import EditPipelineStageDialog from '../components/EditPipelineStageDialog';
 import { LeadDocuments } from '../components/LeadDocuments';
-
 import {
   Loader,
   Center,
@@ -21,15 +18,14 @@ import {
   Card,
   Group,
   Badge,
-  SimpleGrid,
   UnstyledButton,
   ThemeIcon,
-  Divider,
   Button,
-  Select,
   ActionIcon,
   Tooltip,
   Modal,
+  Select,
+  Avatar,
 } from '@mantine/core';
 import {
   IconArrowLeft,
@@ -37,14 +33,12 @@ import {
   IconPhone,
   IconBuilding,
   IconShare,
-  IconCurrencyDollar,
-  IconUser,
-  IconGitBranch,
-  IconHistory,
   IconPencil,
   IconTrash,
   IconAlertTriangle,
-  IconLock,
+  IconUser,
+  IconHistory,
+  IconGitBranch,
 } from '@tabler/icons-react';
 
 const HISTORY_RANGE_OPTIONS = [
@@ -58,25 +52,19 @@ export default function LeadDetails() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const role = user?.role;
-
   const canChangePipeline = [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(role);
   const isRegularUser = role === ROLES.USER;
 
   const [lead, setLead] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyRange, setHistoryRange] = useState('all');
-
-  // Dialog States
   const [historyDrawerOpened, setHistoryDrawerOpened] = useState(false);
   const [editLeadOpened, setEditLeadOpened] = useState(false);
   const [editPipelineOpened, setEditPipelineOpened] = useState(false);
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
-
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
-
-  // Pipeline & Stage state
   const [pipelines, setPipelines] = useState([]);
   const [stages, setStages] = useState([]);
   const [selectedPipelineId, setSelectedPipelineId] = useState(null);
@@ -89,11 +77,13 @@ export default function LeadDetails() {
   const loadHistory = useCallback(async () => {
     try {
       const historyRes = await leadsApi.getHistory(id);
-      const extractedHistory =
-        Array.isArray(historyRes) ? historyRes :
-        Array.isArray(historyRes?.data) ? historyRes.data :
-        Array.isArray(historyRes?.data?.data) ? historyRes.data.data :
-        [];
+      const extractedHistory = Array.isArray(historyRes)
+        ? historyRes
+        : Array.isArray(historyRes?.data)
+          ? historyRes.data
+          : Array.isArray(historyRes?.data?.data)
+            ? historyRes.data.data
+            : [];
       setHistory(extractedHistory);
     } catch (hErr) {
       console.warn('Failed to fetch lead history:', hErr);
@@ -106,13 +96,10 @@ export default function LeadDetails() {
     try {
       const leadRes = await leadsApi.getById(id);
       const extractedLead = leadRes?.data?.data || leadRes?.data || leadRes || null;
-
       if (!extractedLead) throw new Error('Lead data not found');
-
       setLead(extractedLead);
       setSelectedPipelineId(extractedLead.pipelineId || null);
       setSelectedStageId(extractedLead.stageId || null);
-
       await loadHistory();
     } catch (err) {
       setError(err.message || 'Failed to load lead details');
@@ -152,7 +139,6 @@ export default function LeadDetails() {
     }
   }, []);
 
-  // Only load full pipeline list for admins / super-admins
   useEffect(() => {
     loadLead();
     if (canChangePipeline) {
@@ -160,7 +146,6 @@ export default function LeadDetails() {
     }
   }, [loadLead, loadPipelines, canChangePipeline]);
 
-  // Only load stages list when user is allowed to change pipeline/stage
   useEffect(() => {
     if (selectedPipelineId && canChangePipeline) {
       loadStages(selectedPipelineId);
@@ -221,7 +206,7 @@ export default function LeadDetails() {
   if (loading) {
     return (
       <Center h={400}>
-        <Loader type="dots" size="lg" color="blue" />
+        <Loader type="dots" size="lg" color="gray" />
       </Center>
     );
   }
@@ -229,17 +214,19 @@ export default function LeadDetails() {
   if (error || !lead) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
-        <Card withBorder radius="md" p="xl" className="border-red-200 bg-red-50/50">
+        <Card withBorder radius="md" p="xl" className="border-red-200 bg-red-50/50 dark:bg-red-950/30 dark:border-red-800">
           <Stack gap="sm">
-            <Title order={4} className="text-red-700">Unable to load lead</Title>
-            <Text size="sm" className="text-red-600">
+            <Title order={4} className="text-red-700 dark:text-red-400">
+              Unable to load lead
+            </Title>
+            <Text size="sm" className="text-red-600 dark:text-red-300">
               {error || 'Lead record does not exist or was deleted.'}
             </Text>
             <Button
               variant="outline"
               color="red"
               size="xs"
-              className="w-fit"
+              className="w-fit cursor-pointer"
               onClick={() => navigate('/leads')}
             >
               Go to Leads list
@@ -264,8 +251,15 @@ export default function LeadDetails() {
     lead.assignedUserName ||
     'Unassigned';
 
-  // Build options – fall back to the data already present on the lead object
-  // so regular users still see the correct names without calling the failing APIs
+  const assignedRepInitials = assignedRepName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const contactInitial = (lead.contactName || 'L').charAt(0).toUpperCase();
+
   const pipelineOptions = canChangePipeline
     ? pipelines.map((p) => ({ value: String(p.id), label: p.name }))
     : lead?.pipeline
@@ -279,275 +273,338 @@ export default function LeadDetails() {
         ? [{ value: String(lead.stageId), label: lead.stage.name || '—' }]
         : [];
 
+  const currentStageName =
+    lead?.stage?.name ||
+    stageOptions.find((s) => s.value === String(selectedStageId))?.label ||
+    '—';
+
+  const currentPipelineName =
+    lead?.pipeline?.name ||
+    pipelineOptions.find((p) => p.value === String(selectedPipelineId))?.label ||
+    '—';
+
+  const sourceLabel = (lead.source || 'Direct').toUpperCase();
+
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between">
-        <UnstyledButton
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900 transition-all duration-200 group cursor-pointer border border-slate-200/60 dark:bg-slate-800/80 dark:hover:bg-slate-800 dark:text-slate-300 dark:hover:text-white dark:border-slate-700/60"
-        >
-          <IconArrowLeft 
-            size={15} 
-            className="transition-transform duration-200 group-hover:-translate-x-1 text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white" 
-          />
-          <Text size="xs" fw={600} className="tracking-wide">Back to Leads</Text>
-        </UnstyledButton>
-
-        <Button
-          variant="outline"
-          color="gray"
-          size="xs"
-          leftSection={<IconHistory size={15} className="text-indigo-600" />}
-          onClick={() => setHistoryDrawerOpened(true)}
-          className="border-slate-300 shadow-xs hover:bg-slate-50"
-        >
-          Activity & History ({history.length})
-        </Button>
-      </div>
-
-      {/* Header Info */}
-      <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200 pb-5 dark:border-slate-800">
-        <div>
-          <Group gap="xs">
-            <Title order={2} className="text-slate-900 font-bold tracking-tight dark:text-slate-100">
-              {lead.contactName || 'Unnamed Lead'}
-            </Title>
-            {isClosed && (
-              <Badge color="gray" variant="light" size="sm" leftSection={<IconLock size={12} />}>
-                Closed (Locked)
-              </Badge>
-            )}
-          </Group>
-          {lead.companyName && (
-            <Text size="sm" c="dimmed" mt={2}>
-              {lead.companyName}
-            </Text>
-          )}
+    <div className="min-h-screen bg-[#f8f9fb] dark:bg-slate-950">
+      <div className="px-6 pt-5 pb-8 max-w-[1100px] mx-auto">
+        {/* ===== BACK TO LEADS (proper top spacing) ===== */}
+        <div className="mb-6">
+          <UnstyledButton
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 text-[13px] text-slate-500 hover:!text-blue-700 dark:text-slate-400 dark:hover:!text-blue-700 transition-colors cursor-pointer"
+          >
+            <IconArrowLeft size={15} stroke={1.75} />
+            Back to Leads
+          </UnstyledButton>
         </div>
-      </div>
 
-      {/* Cards Grid */}
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-        {/* Contact Details Card */}
-        <Card
-          withBorder
-          radius="lg"
-          p="xl"
-          className="shadow-xs bg-white dark:bg-slate-900 dark:border-slate-800"
-        >
-          <Group justify="space-between" mb="md">
-            <Group gap="xs">
-              <ThemeIcon variant="light" color="blue" radius="md">
-                <IconUser size={18} />
-              </ThemeIcon>
-              <Text fw={600} size="md" className="text-slate-800 dark:text-slate-200">
-                Contact Details
-              </Text>
-            </Group>
-            <Group gap={4}>
-              <Tooltip label={isClosed ? 'Lead is closed and cannot be edited' : 'Edit Contact Details'}>
-                <div>
+        {/* ===== HEADER: Name + Source (more attractive) ===== */}
+        <div className="flex items-start justify-between flex-wrap gap-5 mb-6">
+          <div className="flex items-center gap-4">
+            {/* Avatar – neutral grey */}
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-lg font-semibold tracking-tight">
+              {contactInitial}
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-[22px] font-bold text-slate-900 dark:text-white tracking-tight leading-none m-0">
+                  {lead.contactName || 'Unnamed Lead'}
+                </h1>
+                <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  {sourceLabel}
+                </span>
+              </div>
+              <p className="mt-1.5 text-[13px] text-slate-500 dark:text-slate-400 m-0">
+                {lead.contactName || 'Lead'}
+                <span className="mx-1.5 text-slate-300 dark:text-slate-600">·</span>
+                Lead
+                <span className="mx-1.5 text-slate-300 dark:text-slate-600">·</span>
+                {currentStageName}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="default"
+              size="sm"
+              radius="md"
+              leftSection={<IconPencil size={15} stroke={1.5} />}
+              onClick={() => setEditLeadOpened(true)}
+              disabled={isClosed}
+              className="h-9 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium cursor-pointer"
+            >
+              Edit Lead
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              radius="md"
+              leftSection={<IconHistory size={15} stroke={1.5} />}
+              onClick={() => setHistoryDrawerOpened(true)}
+              className="h-9 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium cursor-pointer"
+            >
+              Activity & History
+              <span className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 px-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                {history.length}
+              </span>
+            </Button>
+          </div>
+        </div>
+
+        {/* ===== SUMMARY CARDS ===== */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+          {/* Estimated Value */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl px-5 py-4 shadow-sm">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 m-0">
+              Estimated Value
+            </p>
+            <p className="text-[22px] font-bold text-slate-900 dark:text-white tracking-tight m-0">
+              {formattedRevenue}
+            </p>
+          </div>
+
+          {/* Assigned Rep */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl px-5 py-4 shadow-sm">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 m-0">
+              Assigned Rep
+            </p>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                {assignedRepInitials}
+              </div>
+              <span className="text-[15px] font-semibold text-slate-800 dark:text-slate-100">
+                {assignedRepName}
+              </span>
+            </div>
+          </div>
+
+          {/* Current Stage */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl px-5 py-4 shadow-sm">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 m-0">
+              Current Stage
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="text-[15px] font-semibold text-slate-800 dark:text-slate-100">
+                {currentStageName}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== CONTACT DETAILS + PIPELINE & STAGE ===== */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-5">
+          {/* Contact Details */}
+          <Card
+            withBorder
+            radius="xl"
+            padding={0}
+            className="lg:col-span-3 bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                  <IconUser size={15} stroke={1.5} />
+                </div>
+                <Text fw={600} size="sm" className="text-slate-800 dark:text-slate-100">
+                  Contact Details
+                </Text>
+              </div>
+              <Group gap={4}>
+                <Tooltip label="Edit contact" withArrow>
                   <ActionIcon
                     variant="subtle"
                     color="gray"
+                    size="sm"
                     radius="md"
                     disabled={isClosed}
                     onClick={() => setEditLeadOpened(true)}
+                    className="cursor-pointer text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                   >
-                    <IconPencil size={16} />
+                    <IconPencil size={15} stroke={1.5} />
                   </ActionIcon>
-                </div>
-              </Tooltip>
-              <Tooltip label="Delete Lead">
-                <div>
+                </Tooltip>
+                <Tooltip label={isRegularUser ? 'You cannot delete leads' : 'Delete lead'} withArrow>
                   <ActionIcon
                     variant="subtle"
                     color="red"
+                    size="sm"
                     radius="md"
-                    onClick={() => setDeleteModalOpened(true)}
                     disabled={isRegularUser}
+                    onClick={() => setDeleteModalOpened(true)}
+                    className="cursor-pointer"
                   >
-                    <IconTrash size={16} />
+                    <IconTrash size={15} stroke={1.5} />
                   </ActionIcon>
-                </div>
-              </Tooltip>
-            </Group>
-          </Group>
-          <Divider mb="lg" />
-
-          <Stack gap="md">
-            <div className="flex items-center gap-3">
-              <ThemeIcon variant="subtle" color="gray" size="sm">
-                <IconMail size={16} />
-              </ThemeIcon>
-              <div>
-                <Text size="xs" c="dimmed">Email Address</Text>
-                <Text size="sm" fw={500} className="text-slate-900 dark:text-slate-100">
-                  {lead.email ? (
-                    <a href={`mailto:${lead.email}`} className="hover:underline text-blue-600">
-                      {lead.email}
-                    </a>
-                  ) : (
-                    '-'
-                  )}
-                </Text>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <ThemeIcon variant="subtle" color="gray" size="sm">
-                <IconPhone size={16} />
-              </ThemeIcon>
-              <div>
-                <Text size="xs" c="dimmed">Phone Number</Text>
-                <Text size="sm" fw={500} className="text-slate-900 dark:text-slate-100">
-                  {lead.phone || '-'}
-                </Text>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <ThemeIcon variant="subtle" color="gray" size="sm">
-                <IconBuilding size={16} />
-              </ThemeIcon>
-              <div>
-                <Text size="xs" c="dimmed">Company</Text>
-                <Text size="sm" fw={500} className="text-slate-900 dark:text-slate-100">
-                  {lead.companyName || '-'}
-                </Text>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <ThemeIcon variant="subtle" color="gray" size="sm">
-                <IconShare size={16} />
-              </ThemeIcon>
-              <div>
-                <Text size="xs" c="dimmed">Lead Source</Text>
-                <Badge variant="outline" color="gray" size="sm" className="capitalize mt-0.5">
-                  {lead.source || 'Direct'}
-                </Badge>
-              </div>
-            </div>
-
-            <Divider my="2px" />
-
-            <div className="flex items-center gap-3">
-              <ThemeIcon variant="subtle" color="gray" size="sm">
-                <IconUser size={16} />
-              </ThemeIcon>
-              <div>
-                <Text size="xs" c="dimmed">Assigned Rep</Text>
-                <Text size="sm" fw={500} className="text-slate-900 dark:text-slate-100">
-                  {assignedRepName}
-                </Text>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <ThemeIcon variant="subtle" color="gray" size="sm">
-                <IconCurrencyDollar size={16} />
-              </ThemeIcon>
-              <div>
-                <Text size="xs" c="dimmed">Estimated Value / Revenue</Text>
-                <Text size="sm" fw={700} className="text-emerald-600">
-                  {formattedRevenue}
-                </Text>
-              </div>
-            </div>
-          </Stack>
-        </Card>
-
-        {/* Right Column */}
-        <Stack gap="lg">
-          <Card
-            withBorder
-            radius="lg"
-            p="xl"
-            className="shadow-xs bg-white dark:bg-slate-900 dark:border-slate-800"
-          >
-            <LeadDocuments leadId={id} isRegularUser={isRegularUser} />
-          </Card>
-
-          <Card
-            withBorder
-            radius="lg"
-            p="xl"
-            className="shadow-xs bg-white dark:bg-slate-900 dark:border-slate-800"
-          >
-            <Group justify="space-between" mb="md">
-              <Group gap="xs">
-                <ThemeIcon variant="light" color="green" radius="md">
-                  <IconGitBranch size={18} />
-                </ThemeIcon>
-                <Text fw={600} size="md" className="text-slate-800 dark:text-slate-200">
-                  Pipeline & Stage
-                </Text>
-              </Group>
-              <Group gap={4}>
-                <Tooltip label={isClosed ? 'Lead is closed and cannot be edited' : 'Edit Pipeline & Stage'}>
-                  <div>
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      radius="md"
-                      disabled={isClosed || isRegularUser}
-                      onClick={() => setEditPipelineOpened(true)}
-                    >
-                      <IconPencil size={16} />
-                    </ActionIcon>
-                  </div>
                 </Tooltip>
               </Group>
-            </Group>
-            <Divider mb="lg" />
+            </div>
 
-            <Stack gap="md">
-              <SimpleGrid cols={2} spacing="md">
-                <div>
-                  <Text size="xs" fw={500} c="dimmed" mb={4}>Pipeline</Text>
-                  <Select
-                    placeholder="Select Pipeline"
-                    data={pipelineOptions}
-                    value={selectedPipelineId ? String(selectedPipelineId) : null}
-                    onChange={handlePipelineChange}
-                    size="sm"
-                    disabled={
-                      isClosed ||
-                      !canChangePipeline ||
-                      savingPipeline ||
-                      pipelinesLoading
-                    }
-                    rightSection={savingPipeline && <Loader size="xs" />}
-                  />
+            <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800">
+              <div className="px-5 py-4">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <IconMail size={13} className="text-slate-400" stroke={1.5} />
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                    Email Address
+                  </span>
                 </div>
+                {lead.email ? (
+                  <a
+                    href={`mailto:${lead.email}`}
+                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {lead.email}
+                  </a>
+                ) : (
+                  <span className="text-sm text-slate-500">—</span>
+                )}
+              </div>
 
-                <div>
-                  <Text size="xs" fw={500} c="dimmed" mb={4}>Stage</Text>
-                  <Select
-                    placeholder="Select Stage"
-                    data={stageOptions}
-                    value={selectedStageId ? String(selectedStageId) : null}
-                    onChange={handleStageChange}
-                    size="sm"
-                    disabled={
-                      isClosed ||
-                      isRegularUser ||          // users can only VIEW the stage
-                      savingStage ||
-                      stagesLoading ||
-                      stageOptions.length === 0
-                    }
-                    rightSection={savingStage && <Loader size="xs" />}
-                  />
+              <div className="px-5 py-4">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <IconPhone size={13} className="text-slate-400" stroke={1.5} />
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                    Phone Number
+                  </span>
                 </div>
-              </SimpleGrid>
-            </Stack>
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                  {lead.phone || '—'}
+                </span>
+              </div>
+
+              <div className="px-5 py-4">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <IconBuilding size={13} className="text-slate-400" stroke={1.5} />
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                    Company
+                  </span>
+                </div>
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                  {lead.companyName || '—'}
+                </span>
+              </div>
+
+              <div className="px-5 py-4">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <IconShare size={13} className="text-slate-400" stroke={1.5} />
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                    Lead Source
+                  </span>
+                </div>
+                <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  {sourceLabel}
+                </span>
+              </div>
+            </div>
           </Card>
-        </Stack>
-      </SimpleGrid>
 
-      {/* History Drawer */}
+          {/* Pipeline & Stage */}
+          <Card
+            withBorder
+            radius="xl"
+            padding={0}
+            className="lg:col-span-2 bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                  <IconGitBranch size={15} stroke={1.5} />
+                </div>
+                <Text fw={600} size="sm" className="text-slate-800 dark:text-slate-100">
+                  Pipeline & Stage
+                </Text>
+              </div>
+              <Group gap={4}>
+                <Tooltip label="Edit pipeline & stage" withArrow>
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    size="sm"
+                    radius="md"
+                    disabled={isClosed || isRegularUser}
+                    onClick={() => setEditPipelineOpened(true)}
+                    className="cursor-pointer text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  >
+                    <IconPencil size={15} stroke={1.5} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label={isRegularUser ? 'You cannot delete leads' : 'Delete lead'} withArrow>
+                  <ActionIcon
+                    variant="subtle"
+                    color="red"
+                    size="sm"
+                    radius="md"
+                    disabled={isRegularUser}
+                    onClick={() => setDeleteModalOpened(true)}
+                    className="cursor-pointer"
+                  >
+                    <IconTrash size={15} stroke={1.5} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400 mb-1.5 m-0">
+                  Pipeline
+                </p>
+                <Select
+                  data={pipelineOptions}
+                  value={selectedPipelineId ? String(selectedPipelineId) : null}
+                  onChange={handlePipelineChange}
+                  placeholder="Select pipeline"
+                  disabled={!canChangePipeline || isClosed || savingPipeline}
+                  rightSection={pipelinesLoading || savingPipeline ? <Loader size={14} color="gray" /> : undefined}
+                  radius="md"
+                  size="sm"
+                  classNames={{
+                    input:
+                      'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100',
+                  }}
+                  allowDeselect={false}
+                />
+              </div>
+
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400 mb-1.5 m-0">
+                  Stage
+                </p>
+                <Select
+                  data={stageOptions}
+                  value={selectedStageId ? String(selectedStageId) : null}
+                  onChange={handleStageChange}
+                  placeholder="Select stage"
+                  disabled={isClosed || isRegularUser || savingStage || !selectedPipelineId}
+                  rightSection={stagesLoading || savingStage ? <Loader size={14} color="gray" /> : undefined}
+                  radius="md"
+                  size="sm"
+                  classNames={{
+                    input:
+                      'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100',
+                  }}
+                  allowDeselect={false}
+                />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* ===== LEAD DOCUMENTS ===== */}
+        <Card
+          withBorder
+          radius="xl"
+          padding="lg"
+          className="bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 shadow-sm"
+        >
+          <LeadDocuments leadId={id} isRegularUser={isRegularUser} />
+        </Card>
+      </div>
+
+      {/* Dialogs */}
       <LeadHistoryDrawer
         opened={historyDrawerOpened}
         onClose={() => setHistoryDrawerOpened(false)}
@@ -557,7 +614,6 @@ export default function LeadDetails() {
         HISTORY_RANGE_OPTIONS={HISTORY_RANGE_OPTIONS}
       />
 
-      {/* Edit Lead Dialog */}
       <EditLeadDialog
         opened={editLeadOpened}
         onClose={() => setEditLeadOpened(false)}
@@ -578,7 +634,6 @@ export default function LeadDetails() {
         }}
       />
 
-      {/* Delete Lead Confirmation */}
       <Modal
         opened={deleteModalOpened}
         onClose={() => !deleting && setDeleteModalOpened(false)}
@@ -590,40 +645,36 @@ export default function LeadDetails() {
       >
         <Stack gap="md">
           <Group gap="sm" wrap="nowrap" align="flex-start">
-            <ThemeIcon
-              color="red"
-              variant="light"
-              size="lg"
-              radius="md"
-              className="shrink-0 mt-0.5"
-            >
+            <ThemeIcon color="red" variant="light" size="lg" radius="md" className="shrink-0 mt-0.5">
               <IconAlertTriangle size={20} />
             </ThemeIcon>
             <div>
-              <Text fw={600} size="md" className="text-slate-900 dark:text-slate-100">
+              <Text fw={600} size="md">
                 Are you absolutely sure?
               </Text>
               <Text size="xs" c="dimmed" mt={4}>
-                This action cannot be undone. This will permanently delete the lead
-                <span className="font-semibold text-slate-700">
-                  {' '}
-                  {lead?.contactName || 'record'}{' '}
-                </span>
-                and remove its data from our servers.
+                This action cannot be undone. This will permanently delete the lead{' '}
+                <span className="font-semibold">{lead?.contactName || 'record'}</span>.
               </Text>
             </div>
           </Group>
-
           <Group justify="end" gap="xs" mt="sm">
             <Button
               variant="default"
               size="xs"
               disabled={deleting}
               onClick={() => setDeleteModalOpened(false)}
+              className="cursor-pointer"
             >
               Cancel
             </Button>
-            <Button color="red" size="xs" loading={deleting} onClick={handleConfirmDelete}>
+            <Button
+              color="red"
+              size="xs"
+              loading={deleting}
+              onClick={handleConfirmDelete}
+              className="cursor-pointer"
+            >
               Delete Lead
             </Button>
           </Group>

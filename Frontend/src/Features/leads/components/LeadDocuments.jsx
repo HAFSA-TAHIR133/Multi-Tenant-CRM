@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
-import { leadsApi } from "../api/leadsApi";
+import React, { useState, useEffect, useRef } from 'react';
+import { leadsApi } from '../api/leadsApi';
 import {
-  FiChevronUp,
-  FiChevronDown,
   FiUploadCloud,
   FiFileText,
   FiTrash2,
   FiExternalLink,
   FiLoader,
   FiDownload,
-} from "react-icons/fi";
+  FiChevronUp,
+} from 'react-icons/fi';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,24 +18,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 
-const isPreviewable = (nameOrUrl = "") =>
+const isPreviewable = (nameOrUrl = '') =>
   /\.(jpg|jpeg|png|webp|gif|svg|pdf)$/i.test(nameOrUrl);
 
 export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [docToDelete, setDocToDelete] = useState(null);
+  const [expanded, setExpanded] = useState(true);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (leadId) {
-      loadDocuments();
-    }
+    if (leadId) loadDocuments();
   }, [leadId]);
 
   const loadDocuments = async () => {
@@ -45,14 +42,14 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
       const data = await leadsApi.getDocuments(leadId);
       setDocuments(Array.isArray(data) ? data : data?.data || []);
     } catch (err) {
-      console.error("Failed to load lead documents:", err);
+      console.error('Failed to load lead documents:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file || !leadId) return;
 
     try {
@@ -62,19 +59,17 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
         setDocuments((prev) => [newDoc, ...prev]);
       }
     } catch (err) {
-      console.error("Upload failed:", err);
+      console.error('Upload failed:', err);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const requestDeleteDocument = (doc) => {
-    setDocToDelete(doc);
-  };
+  const requestDeleteDocument = (doc) => setDocToDelete(doc);
 
   const confirmDeleteDocument = async (e) => {
-    e?.preventDefault(); // Prevent default dialog closure until async deletion completes
+    e?.preventDefault();
     if (!leadId || !docToDelete) return;
 
     const docId = docToDelete.id || docToDelete._id;
@@ -84,20 +79,19 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
       setDocuments((prev) => prev.filter((d) => (d.id || d._id) !== docId));
       setDocToDelete(null);
     } catch (err) {
-      console.error("Failed to delete document:", err);
+      console.error('Failed to delete document:', err);
     } finally {
       setDeletingId(null);
     }
   };
 
-  // Preview images/PDFs in browser; download other types
   const handlePreviewOrOpen = (doc) => {
-    const name = doc.name || doc.filename || doc.originalName || "";
+    const name = doc.name || doc.filename || doc.originalName || '';
     const url = doc.url || doc.path;
     if (!url) return;
 
     if (isPreviewable(name) || isPreviewable(url)) {
-      window.open(url, "_blank", "noopener,noreferrer");
+      window.open(url, '_blank', 'noopener,noreferrer');
     } else {
       handleDownload(doc);
     }
@@ -105,21 +99,20 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
 
   const handleDownload = async (doc) => {
     const url = doc.url || doc.path;
-    const fileName =
-      doc.name || doc.filename || doc.originalName || "downloaded-file";
+    const fileName = doc.name || doc.filename || doc.originalName || 'downloaded-file';
 
     if (!url) return;
 
     try {
-      const downloadUrl = url.includes("cloudinary.com")
-        ? url.replace("/upload/", "/upload/fl_attachment/")
+      const downloadUrl = url.includes('cloudinary.com')
+        ? url.replace('/upload/', '/upload/fl_attachment/')
         : url;
 
       const response = await fetch(downloadUrl);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
 
-      const link = document.createElement("a");
+      const link = document.createElement('a');
       link.href = blobUrl;
       link.download = fileName;
       document.body.appendChild(link);
@@ -127,42 +120,30 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      console.error("Download failed:", err);
-      window.open(url, "_blank");
+      console.error('Download failed:', err);
+      window.open(url, '_blank');
     }
   };
 
   return (
-    <div className="lead-section">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between cursor-pointer py-1 select-none"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+    <div>
+      {/* Header – matches screenshot */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+            <FiFileText className="w-4 h-4" />
+          </div>
+          <h3 className="text-[15px] font-semibold text-slate-800 dark:text-slate-100 m-0">
             Lead Documents
           </h3>
           {documents.length > 0 && (
-            <span className="text-xs bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400 px-2 py-0.5 rounded-full font-semibold">
+            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 px-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
               {documents.length}
             </span>
           )}
         </div>
-        <button
-          type="button"
-          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none"
-        >
-          {isExpanded ? (
-            <FiChevronUp className="w-5 h-5" />
-          ) : (
-            <FiChevronDown className="w-5 h-5" />
-          )}
-        </button>
-      </div>
 
-      {isExpanded && (
-        <div className="mt-3 space-y-3">
+        <div className="flex items-center gap-2">
           <input
             type="file"
             ref={fileInputRef}
@@ -172,97 +153,119 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
           />
           <label
             htmlFor={`file-upload-lead-${leadId}`}
-            className={`flex items-center justify-center gap-2 w-full py-3 px-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-600 dark:text-slate-400 hover:border-violet-400 hover:bg-violet-50/40 dark:hover:bg-violet-950/20 transition-colors cursor-pointer ${
-              uploading ? "opacity-50 pointer-events-none" : ""
+            className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors ${
+              uploading ? 'opacity-60 pointer-events-none' : ''
             }`}
           >
             {uploading ? (
-              <FiLoader className="w-4 h-4 text-violet-500 animate-spin" />
+              <FiLoader className="w-3.5 h-3.5 animate-spin" />
             ) : (
-              <FiUploadCloud className="w-4 h-4 text-violet-500" />
+              <FiUploadCloud className="w-3.5 h-3.5" />
             )}
-            <span className="font-medium">
-              {uploading ? "Uploading attachment..." : "Attach File"}
-            </span>
+            {uploading ? 'Uploading...' : 'Attach File'}
           </label>
 
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+          >
+            <FiChevronUp
+              className={`w-4 h-4 transition-transform ${expanded ? '' : 'rotate-180'}`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {expanded && (
+        <>
           {loading ? (
-            <div className="flex items-center gap-2 py-2 text-xs text-slate-400">
-              <FiLoader className="w-3.5 h-3.5 animate-spin" />
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
+              <FiLoader className="w-4 h-4 animate-spin" />
               Loading documents...
             </div>
           ) : documents.length === 0 ? (
-            <p className="text-xs text-slate-400 py-1 italic">
-              No documents attached yet.
-            </p>
+            <div className="text-center py-10 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+              <FiFileText className="w-7 h-7 text-slate-300 dark:text-slate-600 mx-auto mb-2.5" />
+              <p className="text-sm text-slate-500 dark:text-slate-400 m-0">
+                No documents attached yet.
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 m-0">
+                Click “Attach File” to upload.
+              </p>
+            </div>
           ) : (
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <div className="space-y-0 divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200/90 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900">
               {documents.map((doc) => {
                 const docId = doc.id || doc._id;
                 const fileName =
-                  doc.name || doc.filename || doc.originalName || "Untitled Document";
+                  doc.name || doc.filename || doc.originalName || 'Untitled Document';
                 const canPreview = isPreviewable(fileName) || isPreviewable(doc.url);
                 const isDeleting = deletingId === docId;
 
                 return (
                   <div
-                    key={docId || Math.random()}
-                    className="flex items-center justify-between gap-2 p-2.5 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/60 hover:border-violet-200 dark:hover:border-violet-900/40 transition-all group"
+                    key={docId}
+                    className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                   >
-                    <div
-                      onClick={() => handlePreviewOrOpen(doc)}
-                      className="flex items-center gap-2.5 min-w-0 pr-2 flex-1 cursor-pointer"
-                      title={
-                        canPreview
-                          ? "Click to preview in browser"
-                          : "Click to download"
-                      }
-                    >
-                      <div className="h-8 w-8 rounded-lg bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center shrink-0">
-                        <FiFileText className="w-3.5 h-3.5 text-violet-500" />
+                    {/* Left: icon + name + status badge */}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                        <FiFileText className="w-4 h-4" />
                       </div>
-                      <div className="min-w-0">
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate block group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+
+                      <div className="min-w-0 flex items-center gap-2.5 flex-wrap">
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate max-w-[280px]">
                           {fileName}
                         </span>
-                        <span className="text-[10px] text-slate-400">
-                          {canPreview ? "Previewable" : "Download only"}
-                        </span>
+
+                        {canPreview ? (
+                          <span className="inline-flex items-center rounded-md bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                            Previewable
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                            Download only
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                    {/* Right: actions */}
+                    <div className="flex items-center gap-0.5 shrink-0">
                       <button
                         type="button"
                         onClick={() => handleDownload(doc)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
+                        className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
                         title="Download"
                       >
-                        <FiDownload className="w-3.5 h-3.5" />
+                        <FiDownload className="w-4 h-4" />
                       </button>
+
                       <a
-                        href={doc.url}
+                        href={doc.url || doc.path}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
                         title="Open in new tab"
-                        onClick={(e) => e.stopPropagation()}
                       >
-                        <FiExternalLink className="w-3.5 h-3.5" />
+                        <FiExternalLink className="w-4 h-4" />
                       </a>
+
                       {!isRegularUser && (
                         <button
                           type="button"
                           onClick={() => requestDeleteDocument(doc)}
                           disabled={isDeleting}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
+                          className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
                           title="Delete"
                         >
                           {isDeleting ? (
-                            <FiLoader className="w-3.5 h-3.5 animate-spin text-red-500" />
+                            <FiLoader className="w-4 h-4 animate-spin text-red-500" />
                           ) : (
-                            <FiTrash2 className="w-3.5 h-3.5" />
+                            <FiTrash2 className="w-4 h-4" />
                           )}
                         </button>
                       )}
@@ -272,10 +275,10 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
               })}
             </div>
           )}
-        </div>
+        </>
       )}
 
-      {/* Delete confirmation dialog */}
+      {/* Delete confirmation */}
       <AlertDialog
         open={!!docToDelete}
         onOpenChange={(open) => {
@@ -286,12 +289,12 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete document?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete{" "}
+              This action cannot be undone. This will permanently delete{' '}
               <strong className="text-slate-800 dark:text-slate-200">
                 {docToDelete?.name ||
                   docToDelete?.filename ||
                   docToDelete?.originalName ||
-                  "this document"}
+                  'this document'}
               </strong>
               .
             </AlertDialogDescription>
@@ -299,22 +302,22 @@ export const LeadDocuments = ({ leadId, isRegularUser = false }) => {
           <AlertDialogFooter>
             <AlertDialogCancel
               disabled={deletingId !== null}
-              className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-xl disabled:opacity-50"
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeleteDocument}
               disabled={deletingId !== null}
-              className="rounded-xl bg-red-600 text-white hover:bg-red-700 focus:ring-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {deletingId !== null ? (
                 <>
                   <FiLoader className="w-4 h-4 animate-spin" />
-                  <span>Deleting...</span>
+                  Deleting...
                 </>
               ) : (
-                "Delete"
+                'Delete'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

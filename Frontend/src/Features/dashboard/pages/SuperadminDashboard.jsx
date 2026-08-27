@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { dashboardApi } from '../api/dashboardApi';
 import DashboardHeader from '../components/DashboardHeader';
 import OverviewCards from '../components/overviewCard';
@@ -11,35 +11,49 @@ export default function SuperAdminDashboard() {
   const [stats, setStats] = useState(null);
   const [lineData, setLineData] = useState([]);
   const [statusData, setStatusData] = useState([]);
+  const [timeframe, setTimeframe] = useState('This Week');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Fetch initial stats and pie chart data
   useEffect(() => {
-    const loadDashboard = async () => {
+    const loadInitialData = async () => {
       setLoading(true);
       setError('');
 
       try {
         const statsRes = await dashboardApi.getStats();
-        const tenantsChartRes = await dashboardApi.getTenantsChart();
         const tenantStatusRes = await dashboardApi.getTenantStatusChart();
 
         const normalizedStats = statsRes?.data || statsRes || {};
-        const normalizedLine = tenantsChartRes?.data || tenantsChartRes?.items || tenantsChartRes || [];
         const normalizedStatus = tenantStatusRes?.data || tenantStatusRes?.items || tenantStatusRes || [];
 
         setStats(normalizedStats);
-        setLineData(normalizedLine);
         setStatusData(normalizedStatus);
       } catch (err) {
-        setError(err.message || 'Failed to load dashboard');
+        setError(err.message || 'Failed to load dashboard statistics');
       } finally {
         setLoading(false);
       }
     };
 
-    loadDashboard();
+    loadInitialData();
   }, []);
+
+  // Fetch line graph data whenever timeframe changes
+  const fetchLineGraph = useCallback(async (selectedTimeframe) => {
+    try {
+      const tenantsChartRes = await dashboardApi.getTenantsChart(selectedTimeframe);
+      const normalizedLine = tenantsChartRes?.data || tenantsChartRes?.items || tenantsChartRes || [];
+      setLineData(normalizedLine);
+    } catch (err) {
+      console.error('Failed to update line chart:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLineGraph(timeframe);
+  }, [timeframe, fetchLineGraph]);
 
   const cards = [
     {
@@ -96,18 +110,20 @@ export default function SuperAdminDashboard() {
           <OverviewCards cards={cards} />
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 flex">
+            <div className="flex lg:col-span-2">
               <TenantsLineGraph
                 title="Tenants Overview"
                 valueLabel="New Tenants"
                 data={lineData}
                 xKey="day"
                 yKey="tenants"
-                dropdownOptions={['This Week', 'Last 7 Days', 'Last 14 Days']}
+                selectedTimeframe={timeframe}
+                dropdownOptions={['This Week', 'Last 7 Days', 'Last 14 Days', 'Last 30 Days']}
+                onTimeframeChange={(newTimeframe) => setTimeframe(newTimeframe)}
               />
             </div>
 
-            <div className="lg:col-span-1 flex">
+            <div className="flex lg:col-span-1">
               <PieChart
                 title="Tenants Status"
                 data={statusData}

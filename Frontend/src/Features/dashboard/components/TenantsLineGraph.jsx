@@ -17,15 +17,17 @@ const formatCurrency = (val) => {
   }).format(val);
 };
 
-const CustomTooltip = ({ active, payload, xKey, yKey, valueLabel = 'Value', isCurrency = false }) => {
+const CustomTooltip = ({ active, payload, xKey, valueLabel = 'Value', isCurrency = false }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const rawValue = payload[0].value ?? 0;
     const formattedVal = isCurrency ? formatCurrency(rawValue) : rawValue.toLocaleString();
 
+    const xLabel = data?.[xKey] || data?.date || data?.day || data?.label || '';
+
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-white">
-        <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">{data?.[xKey] ?? ''}</p>
+        <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">{xLabel}</p>
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-black dark:bg-white" />
           <p className="text-sm font-bold">
@@ -61,14 +63,21 @@ export default function TenantsLineGraph({
   xKey = 'day',
   yKey = 'value',
   isCurrency = false,
-  dropdownOptions = ['This Week', 'Last 7 Days', 'Last 14 Days'],
+  selectedTimeframe,
+  dropdownOptions = ['This Week', 'Last 7 Days', 'Last 14 Days', 'Last 30 Days'],
   onTimeframeChange,
 }) {
-  const [timeframe, setTimeframe] = useState(dropdownOptions[0] || 'This Week');
+  const [timeframe, setTimeframe] = useState(selectedTimeframe || dropdownOptions[0] || 'This Week');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
-  // Monitor html.dark class changes to switch stroke & glow dynamically
+  // Synchronize internal state with parent component updates
+  useEffect(() => {
+    if (selectedTimeframe) {
+      setTimeframe(selectedTimeframe);
+    }
+  }, [selectedTimeframe]);
+
   useEffect(() => {
     const checkDark = () => setIsDark(document.documentElement.classList.contains('dark'));
     checkDark();
@@ -98,9 +107,19 @@ export default function TenantsLineGraph({
     return raw.length > 0 ? raw : defaultEmptyData;
   }, [data, yKey]);
 
+  const activeXKey = useMemo(() => {
+    if (currentData.length === 0) return xKey;
+    const sample = currentData[0];
+    if (sample[xKey] !== undefined) return xKey;
+    if (sample.date !== undefined) return 'date';
+    if (sample.day !== undefined) return 'day';
+    if (sample.label !== undefined) return 'label';
+    return xKey;
+  }, [currentData, xKey]);
+
   const maxVal = useMemo(() => {
     const computedMax = Math.max(...currentData.map((d) => Number(d?.[yKey]) || 0), 0);
-    return computedMax === 0 ? 100 : 'auto';
+    return computedMax === 0 ? 10 : 'auto';
   }, [currentData, yKey]);
 
   const total = useMemo(() => {
@@ -108,8 +127,6 @@ export default function TenantsLineGraph({
   }, [currentData, yKey]);
 
   const formattedTotal = isCurrency ? formatCurrency(total) : `+${total.toLocaleString()}`;
-
-  // Theme-dependent colors: Black in Light Mode, White in Dark Mode
   const mainColor = isDark ? '#ffffff' : '#09090b';
 
   return (
@@ -163,7 +180,7 @@ export default function TenantsLineGraph({
 
       <div className="h-64 w-full sm:h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={currentData} margin={{ top: 10, right: 1, left: 2, bottom: 0 }}>
+          <AreaChart data={currentData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
             <defs>
               <linearGradient id="themeGlow" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={mainColor} stopOpacity={isDark ? 0.25 : 0.15} />
@@ -171,12 +188,20 @@ export default function TenantsLineGraph({
               </linearGradient>
             </defs>
             <XAxis
-              dataKey={xKey}
+              dataKey={activeXKey}
               stroke="#64748b"
               fontSize={12}
               tickLine={false}
               axisLine={false}
               dy={10}
+              interval="preserveStartEnd"
+              tickFormatter={(val) => {
+                if (typeof val === 'string' && val.includes('-')) {
+                  const parts = val.split('-');
+                  return `${parts[1]}/${parts[2]}`;
+                }
+                return val;
+              }}
             />
             <YAxis
               stroke="#64748b"
@@ -190,7 +215,7 @@ export default function TenantsLineGraph({
 
             <Tooltip
               content={
-                <CustomTooltip xKey={xKey} yKey={yKey} valueLabel={valueLabel} isCurrency={isCurrency} />
+                <CustomTooltip xKey={activeXKey} valueLabel={valueLabel} isCurrency={isCurrency} />
               }
             />
             <Area

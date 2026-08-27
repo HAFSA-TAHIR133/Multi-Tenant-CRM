@@ -59,7 +59,7 @@ export default function AppRoutes() {
 
           {/* Legacy un-prefixed URLs */}
           <Route path="/users" element={<Navigate to="/admin/users" replace />} />
-          <Route path="/users/:id" element={<Navigate to="/admin/users" replace />} />
+          {/* <Route path="/users/:id" element={<Navigate to="/admin/users" replace />} /> */}
           <Route path="/tasks" element={<Navigate to="/admin/tasks" replace />} />
           <Route path="/leads/:id/edit" element={<Navigate to="/admin/leads" replace />} />
 

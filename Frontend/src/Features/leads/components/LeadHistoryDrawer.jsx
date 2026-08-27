@@ -5,12 +5,13 @@ import {
   Group,
   Text,
   Badge,
-  Table,
   Select,
   Center,
   Divider,
+  Paper,
+  Box,
 } from '@mantine/core';
-import { IconArrowRight, IconHistory } from '@tabler/icons-react';
+import { IconArrowRight, IconHistory, IconClock } from '@tabler/icons-react';
 import { formatDate, formatRelativeTime } from '@/lib/dateFormatter';
 
 const ACTION_COLORS = {
@@ -51,10 +52,10 @@ const getChangeValue = (item, key) => {
   return String(raw);
 };
 
-const getChangeCell = (item) => {
+const ChangeDisplay = ({ item }) => {
   if (item.action === 'CREATE') {
     return (
-      <Badge size="sm" variant="light" color="green">
+      <Badge size="sm" variant="light" color="green" radius="sm">
         Lead record created
       </Badge>
     );
@@ -64,16 +65,29 @@ const getChangeCell = (item) => {
   const newValue = getChangeValue(item, 'newValue');
 
   if (oldValue === null && newValue === null) {
-    return <Text size="xs" c="dimmed">—</Text>;
+    return (
+      <Text size="xs" c="dimmed">
+        —
+      </Text>
+    );
   }
 
   return (
-    <Group gap={4} wrap="wrap">
-      <Text size="xs" className="line-through text-slate-400">
+    <Group gap={6} wrap="nowrap" align="center">
+      <Text
+        size="xs"
+        className="line-through text-slate-400 dark:text-slate-500 max-w-[140px] truncate"
+        title={oldValue ?? 'none'}
+      >
         {oldValue ?? 'none'}
       </Text>
       <IconArrowRight size={12} className="text-slate-400 shrink-0" />
-      <Text size="xs" fw={600} className="text-emerald-600">
+      <Text
+        size="xs"
+        fw={600}
+        className="text-emerald-600 dark:text-emerald-400 max-w-[140px] truncate"
+        title={newValue ?? 'none'}
+      >
         {newValue ?? 'none'}
       </Text>
     </Group>
@@ -112,7 +126,7 @@ export default function LeadHistoryDrawer({
       padding="lg"
       title={
         <Group gap="xs">
-          <IconHistory size={20} className="text-indigo-600" />
+          <IconHistory size={20} className="text-slate-500" />
           <Text fw={700} size="lg" className="text-slate-900 dark:text-slate-100">
             Activity & History
           </Text>
@@ -120,6 +134,7 @@ export default function LeadHistoryDrawer({
       }
     >
       <Stack gap="md" className="h-full">
+        {/* Filter bar */}
         <Group justify="space-between" align="center">
           <Select
             aria-label="History range"
@@ -128,6 +143,7 @@ export default function LeadHistoryDrawer({
             onChange={(val) => setHistoryRange(val || 'all')}
             data={HISTORY_RANGE_OPTIONS}
             style={{ width: 140 }}
+            radius="md"
           />
           <Text size="xs" c="dimmed">
             Showing {filteredHistory.length} of {history.length} events
@@ -137,55 +153,67 @@ export default function LeadHistoryDrawer({
         <Divider />
 
         {filteredHistory.length === 0 ? (
-          <Center p="xl">
-            <Text size="sm" c="dimmed">
-              No history events recorded for this range.
-            </Text>
+          <Center className="flex-1 py-16">
+            <Stack align="center" gap="xs">
+              <IconClock size={36} className="text-slate-300 dark:text-slate-600" />
+              <Text size="sm" c="dimmed" ta="center">
+                No history events recorded for this range.
+              </Text>
+            </Stack>
           </Center>
         ) : (
-          <div className="overflow-y-auto max-h-[calc(100vh-180px)] rounded-lg border border-slate-200 dark:border-slate-800">
-            <Table highlightOnHover verticalSpacing="xs" horizontalSpacing="sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/50 dark:border-slate-800">
-                  <th className="text-[11px] font-semibold text-slate-500 uppercase py-2 dark:text-slate-400">Activity</th>
-                  <th className="text-[11px] font-semibold text-slate-500 uppercase py-2 dark:text-slate-400">User</th>
-                  <th className="text-[11px] font-semibold text-slate-500 uppercase py-2 dark:text-slate-400">Changes</th>
-                  <th className="text-[11px] font-semibold text-slate-500 uppercase py-2 dark:text-slate-400">When</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredHistory.map((item) => {
-                  const actorName =
-                    item.user?.name ||
-                    item.changedByUser?.name ||
-                    item.user?.email ||
-                    'System';
+          <Box className="overflow-y-auto max-h-[calc(100vh-180px)] pr-1">
+            <Stack gap="sm">
+              {filteredHistory.map((item, index) => {
+                const actorName =
+                  item.user?.name ||
+                  item.changedByUser?.name ||
+                  item.user?.email ||
+                  'System';
 
-                  return (
-                    <tr key={item.id || `${item.createdAt}-${item.action}`} className="border-b border-slate-100 dark:border-slate-800">
-                      <td className="py-2.5">
-                        <Stack gap={2}>
+                return (
+                  <Paper
+                    key={item.id || `${item.createdAt}-${item.action}-${index}`}
+                    withBorder
+                    radius="md"
+                    p="sm"
+                    className="border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800 transition-colors"
+                  >
+                    <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
+                      {/* Left: action + title */}
+                      <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                        <Group gap={6} wrap="nowrap">
                           <Badge
                             size="xs"
                             variant="light"
                             color={ACTION_COLORS[item.action] || 'gray'}
-                            className="w-fit"
+                            radius="sm"
                           >
                             {item.action || 'EVENT'}
                           </Badge>
-                          <Text size="xs" fw={500} className="text-slate-800 dark:text-slate-200">
+                          <Text
+                            size="sm"
+                            fw={600}
+                            className="text-slate-800 dark:text-slate-100 truncate"
+                          >
                             {getActivityTitle(item)}
                           </Text>
-                        </Stack>
-                      </td>
-                      <td className="py-2.5">
-                        <Text size="xs" fw={500} className="text-slate-700 dark:text-slate-300">
-                          {actorName}
+                        </Group>
+
+                        {/* Changes */}
+                        <Box className="mt-1">
+                          <ChangeDisplay item={item} />
+                        </Box>
+
+                        {/* Actor */}
+                        <Text size="xs" c="dimmed" className="mt-1">
+                          by {actorName}
                         </Text>
-                      </td>
-                      <td className="py-2.5">{getChangeCell(item)}</td>
-                      <td className="py-2.5">
-                        <Text size="xs" className="text-slate-600 dark:text-slate-400">
+                      </Stack>
+
+                      {/* Right: timestamp */}
+                      <Stack gap={0} align="flex-end" style={{ flexShrink: 0 }}>
+                        <Text size="xs" fw={500} className="text-slate-600 dark:text-slate-300">
                           {formatDate(item.createdAt, {
                             month: 'short',
                             day: 'numeric',
@@ -196,13 +224,13 @@ export default function LeadHistoryDrawer({
                         <Text size="xs" c="dimmed">
                           {formatRelativeTime(item.createdAt)}
                         </Text>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-          </div>
+                      </Stack>
+                    </Group>
+                  </Paper>
+                );
+              })}
+            </Stack>
+          </Box>
         )}
       </Stack>
     </Drawer>

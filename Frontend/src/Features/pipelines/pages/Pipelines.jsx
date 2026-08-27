@@ -5,8 +5,14 @@ import { pipelinesApi } from '../api/pipelinesApi';
 import { tasksApi } from '@/Features/tasks/api/tasksApi';
 import { toast } from 'sonner';
 
-import { Select, Title, Text, Modal, LoadingOverlay, Badge, Group, Paper } from '@mantine/core';
-import { IconPlus, IconPencil, IconTrash, IconLayoutKanban } from '@tabler/icons-react';
+import {
+  Select,
+  Text,
+  Modal,
+  LoadingOverlay,
+  Badge,
+} from '@mantine/core';
+import { IconPlus, IconPencil, IconTrash, IconShare } from '@tabler/icons-react';
 import KanbanBoard from '../components/kanban/KanbanBoard';
 import StageManager from '../components/kanban/StageManager';
 import EditLeadDialog from '@/Features/leads/components/EditLeadDialog';
@@ -33,6 +39,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+
+// Shared styling buttons
+const primaryBtnClass =
+  '!bg-[#0f172a] !text-white hover:!bg-slate-800 dark:!bg-white dark:!text-slate-900 dark:hover:!bg-slate-100 cursor-pointer transition-all duration-200 ease-in-out border-0 font-medium rounded-lg';
+
+const outlineBtnClass =
+  '!bg-white !text-slate-700 !border-slate-200 hover:!bg-slate-50 dark:!bg-slate-900 dark:!text-slate-200 dark:!border-slate-700 dark:hover:!bg-slate-800 cursor-pointer transition-all duration-200 ease-in-out font-medium rounded-lg';
+
+const deleteBtnClass =
+  '!bg-transparent !text-red-500 hover:!bg-red-50 dark:hover:!bg-red-950/30 cursor-pointer transition-all duration-200 ease-in-out border-0 font-medium';
 
 export default function Pipelines() {
   const { user } = useAuth();
@@ -78,18 +94,21 @@ export default function Pipelines() {
     (lead) => {
       if (!user) return false;
       const userIdStr = String(user.id || user._id || user.userId);
-      
-      const isDirectlyAssigned = 
+
+      const isDirectlyAssigned =
         String(lead.assignedUserId) === userIdStr ||
         String(lead.assignedTo) === userIdStr ||
         String(lead.assignedToId) === userIdStr ||
         String(lead.userId) === userIdStr ||
-        (Array.isArray(lead.assignedUsers) && lead.assignedUsers.some((u) => String(u.id || u) === userIdStr));
-      
+        (Array.isArray(lead.assignedUsers) &&
+          lead.assignedUsers.some((u) => String(u.id || u) === userIdStr));
+
       if (isDirectlyAssigned) return true;
-      
+
       const leadId = Number(lead.id);
-      return userTasks.some((task) => Number(task.leadId || task.lead_id) === leadId);
+      return userTasks.some(
+        (task) => Number(task.leadId || task.lead_id) === leadId
+      );
     },
     [user, userTasks]
   );
@@ -112,17 +131,29 @@ export default function Pipelines() {
     if (canManage) return pipelines;
 
     const userLeadPipelineIds = new Set(
-      allLeads.filter(isLeadAssignedToUser).map((lead) => String(lead.pipelineId || lead.pipeline?.id))
+      allLeads
+        .filter(isLeadAssignedToUser)
+        .map((lead) => String(lead.pipelineId || lead.pipeline?.id))
     );
 
     return pipelines.filter(
-      (p) => userLeadPipelineIds.has(String(p.id)) || isUserAssignedToPipeline(p)
+      (p) =>
+        userLeadPipelineIds.has(String(p.id)) || isUserAssignedToPipeline(p)
     );
-  }, [pipelines, allLeads, canManage, isLeadAssignedToUser, isUserAssignedToPipeline]);
+  }, [
+    pipelines,
+    allLeads,
+    canManage,
+    isLeadAssignedToUser,
+    isUserAssignedToPipeline,
+  ]);
 
   // Selected Pipeline Object
   const selectedPipeline = useMemo(
-    () => visiblePipelines.find((p) => String(p.id) === String(selectedPipelineId)) || null,
+    () =>
+      visiblePipelines.find(
+        (p) => String(p.id) === String(selectedPipelineId)
+      ) || null,
     [visiblePipelines, selectedPipelineId]
   );
 
@@ -141,16 +172,30 @@ export default function Pipelines() {
       const [pipeRes, leadsRes, tasksRes] = await Promise.all([
         pipelinesApi.getAll(),
         pipelinesApi.getAllLeads().catch(() => ({ data: [] })),
-        !canManage && user?.id ? tasksApi.getTasksForUser(user.id).catch(() => []) : Promise.resolve([]),
+        !canManage && user?.id
+          ? tasksApi.getTasksForUser(user.id).catch(() => [])
+          : Promise.resolve([]),
       ]);
 
-      const normalizedTasks = Array.isArray(tasksRes) ? tasksRes :
-        Array.isArray(tasksRes?.data) ? tasksRes.data :
-        Array.isArray(tasksRes?.items) ? tasksRes.items : [];
+      const normalizedTasks = Array.isArray(tasksRes)
+        ? tasksRes
+        : Array.isArray(tasksRes?.data)
+          ? tasksRes.data
+          : Array.isArray(tasksRes?.items)
+            ? tasksRes.items
+            : [];
       setUserTasks(normalizedTasks);
 
-      const pipeList = Array.isArray(pipeRes?.data) ? pipeRes.data : Array.isArray(pipeRes) ? pipeRes : [];
-      const leadList = Array.isArray(leadsRes?.data) ? leadsRes.data : Array.isArray(leadsRes) ? leadsRes : [];
+      const pipeList = Array.isArray(pipeRes?.data)
+        ? pipeRes.data
+        : Array.isArray(pipeRes)
+          ? pipeRes
+          : [];
+      const leadList = Array.isArray(leadsRes?.data)
+        ? leadsRes.data
+        : Array.isArray(leadsRes)
+          ? leadsRes
+          : [];
 
       setPipelines(pipeList);
       setAllLeads(leadList);
@@ -172,8 +217,11 @@ export default function Pipelines() {
                 String(lead.assignedTo) === userIdStr ||
                 String(lead.assignedToId) === userIdStr ||
                 String(lead.userId) === userIdStr ||
-                (Array.isArray(lead.assignedUsers) && lead.assignedUsers.some((u) => String(u.id || u) === userIdStr));
-              
+                (Array.isArray(lead.assignedUsers) &&
+                  lead.assignedUsers.some(
+                    (u) => String(u.id || u) === userIdStr
+                  ));
+
               if (isDirectlyAssigned) return true;
               return taskAssignedLeadIds.has(Number(lead.id));
             })
@@ -183,12 +231,15 @@ export default function Pipelines() {
         availablePipes = pipeList.filter(
           (p) =>
             userPipelineIds.has(String(p.id)) ||
-            (Array.isArray(p.assignedUsers) && p.assignedUsers.some((u) => String(u.id || u) === userIdStr))
+            (Array.isArray(p.assignedUsers) &&
+              p.assignedUsers.some((u) => String(u.id || u) === userIdStr))
         );
       }
 
       const storedPipeId = localStorage.getItem('selectedPipelineId');
-      const validStoredPipe = availablePipes.find((p) => String(p.id) === String(storedPipeId));
+      const validStoredPipe = availablePipes.find(
+        (p) => String(p.id) === String(storedPipeId)
+      );
 
       if (validStoredPipe) {
         setSelectedPipelineId(validStoredPipe.id);
@@ -219,14 +270,24 @@ export default function Pipelines() {
         pipelinesApi.getPipelineLeads(pipelineId).catch(() => ({ data: [] })),
       ]);
 
-      const stageList = Array.isArray(stageRes?.data) ? stageRes.data : Array.isArray(stageRes) ? stageRes : [];
-      const leadList = Array.isArray(leadRes?.data) ? leadRes.data : Array.isArray(leadRes) ? leadRes : [];
+      const stageList = Array.isArray(stageRes?.data)
+        ? stageRes.data
+        : Array.isArray(stageRes)
+          ? stageRes
+          : [];
+      const leadList = Array.isArray(leadRes?.data)
+        ? leadRes.data
+        : Array.isArray(leadRes)
+          ? leadRes
+          : [];
 
       setStages(stageList);
       setLeads(leadList);
 
       const currentStoredLeadId = localStorage.getItem('selectedLeadId');
-      const activeLeadInPipeline = leadList.find((l) => String(l.id) === String(currentStoredLeadId));
+      const activeLeadInPipeline = leadList.find(
+        (l) => String(l.id) === String(currentStoredLeadId)
+      );
 
       if (activeLeadInPipeline) {
         setSelectedLeadId(activeLeadInPipeline.id);
@@ -318,7 +379,9 @@ export default function Pipelines() {
     try {
       await pipelinesApi.remove(deletePipeline.id);
       toast.success('Pipeline deleted');
-      const remaining = pipelines.filter((p) => String(p.id) !== String(deletePipeline.id));
+      const remaining = pipelines.filter(
+        (p) => String(p.id) !== String(deletePipeline.id)
+      );
       setPipelines(remaining);
       if (String(selectedPipelineId) === String(deletePipeline.id)) {
         const nextPipelineId = remaining.length > 0 ? remaining[0].id : null;
@@ -357,141 +420,138 @@ export default function Pipelines() {
   }));
 
   return (
-    <div className="bg-[#fcfcfc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen p-6 relative transition-colors">
+    <div className="bg-slate-50/60 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen p-6 relative transition-colors space-y-6">
       <LoadingOverlay visible={loading} overlayProps={{ blur: 2 }} />
 
-      {/* Header Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-          marginBottom: 20,
-          flexWrap: 'wrap',
-          gap: 16,
-        }}
-      >
-        <div>
-          <Title order={2} fw={700} className="text-2xl text-gray-900 dark:text-white tracking-tight">
-            Pipelines
-          </Title>
-          <Text className="text-gray-500 dark:text-slate-400 text-sm mt-0.5">
-            {canManage
-              ? 'Manage your sales pipelines, stages, and update lead information.'
-              : 'View your assigned lead pipelines, active stages, and update lead information.'}
-          </Text>
-        </div>
+      {/* Top Header Card Container */}
+      <div className="bg-[#f8f9fa] dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
+        {/* Main Header Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-5">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Pipelines
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              {canManage
+                ? 'Manage your sales pipelines, stages, and update lead information.'
+                : 'View your assigned lead pipelines, active stages, and update lead information.'}
+            </p>
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
-          <Select
-            label="Switch Pipeline"
-            placeholder="Select Pipeline"
-            data={pipelineOptions}
-            value={selectedPipelineId ? String(selectedPipelineId) : null}
-            onChange={(val) => {
-              setSelectedPipelineId(val ? Number(val) : null);
-            }}
-            size="xs"
-            className="w-[190px]"
-            styles={{
-              input: { cursor: 'pointer', fontWeight: 500 },
-              option: { cursor: 'pointer' },
-            }}
-          />
-
-          {canManage && (
-            <Button
-              onClick={openCreatePipeline}
-              size="sm"
-              className="bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 h-8 text-xs gap-1.5 hover:cursor-pointer"
-            >
-              <IconPlus size={15} />
-              Add Pipeline
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {error ? (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-400">
-          {error}
-        </div>
-      ) : null}
-
-      {/* Kanban & Pipeline Content */}
-      {selectedPipeline ? (
-        <div style={{ position: 'relative' }}>
-          <LoadingOverlay visible={dataLoading} overlayProps={{ blur: 1 }} />
-
-          <Paper
-            p="sm"
-            mb="md"
-            radius="md"
-            withBorder
-            className="border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900 text-slate-900 dark:text-white"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 12,
-            }}
-          >
-            <div>
-              <Group gap="xs" align="center">
-                <Badge
-                  variant="light"
-                  color="gray"
-                  size="sm"
-                  leftSection={<IconLayoutKanban size={11} />}
-                  className="bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300 font-semibold tracking-wider uppercase"
-                >
-                  Pipeline
-                </Badge>
-                <Text fw={700} size="lg" className="text-gray-900 dark:text-white leading-tight">
-                  {selectedPipeline.name}
-                </Text>
-              </Group>
-              {selectedPipeline.description && (
-                <Text size="xs" className="text-gray-500 dark:text-slate-400 mt-1 ml-0.5">
-                  {selectedPipeline.description}
-                </Text>
-              )}
+          <div className="flex items-end gap-3 flex-wrap">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                SWITCH PIPELINE
+              </span>
+              <Select
+                placeholder="Select Pipeline"
+                data={pipelineOptions}
+                value={selectedPipelineId ? String(selectedPipelineId) : null}
+                onChange={(val) => {
+                  setSelectedPipelineId(val ? Number(val) : null);
+                }}
+                size="sm"
+                className="w-[180px]"
+                styles={{
+                  input: {
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                    borderRadius: '8px',
+                    borderColor: '#e2e8f0',
+                    backgroundColor: '#ffffff',
+                  },
+                }}
+              />
             </div>
 
             {canManage && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                onClick={openCreatePipeline}
+                size="sm"
+                className={`${primaryBtnClass} h-9 px-4 text-xs gap-1.5`}
+              >
+                <IconPlus size={16} />
+                Add Pipeline
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Selected Pipeline Info Sub-Card */}
+        {selectedPipeline && (
+          <div className="mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                <IconShare size={20} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900 dark:text-white text-base">
+                    {selectedPipeline.name}
+                  </span>
+                  <Badge
+                    variant="light"
+                    color="gray"
+                    size="xs"
+                    className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-semibold tracking-wider uppercase text-[10px]"
+                  >
+                    PIPELINE
+                  </Badge>
+                </div>
+                {selectedPipeline.description && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {selectedPipeline.description}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {canManage && (
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-black text-white hover:bg-black/80h  dark:bg-white dark:text-black dark:hover:bg-white/80 h-8 text-xs gap-1.5 cursor-pointer transition-opacity"
+                  className={`${outlineBtnClass} h-8 text-xs gap-1.5 px-3`}
                   onClick={() => openEditPipeline(selectedPipeline)}
                 >
                   <IconPencil size={14} />
                   Edit Pipeline
                 </Button>
+
                 <Button
-                  variant="outline"
                   size="sm"
-                  className="bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 h-8 text-xs gap-1.5 hover:cursor-pointer"
+                  className={`${primaryBtnClass} h-8 text-xs gap-1.5 px-3`}
                   onClick={() => openStageManager('create')}
                 >
                   <IconPlus size={14} />
                   Add Stage
                 </Button>
+
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setDeletePipeline(selectedPipeline)}
-                  className="h-8 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer dark:text-red-400 dark:hover:bg-red-950/50 gap-1.5"
+                  className={`${deleteBtnClass} h-8 text-xs gap-1 px-2.5`}
                 >
                   <IconTrash size={14} />
                   Delete
                 </Button>
               </div>
             )}
-          </Paper>
+          </div>
+        )}
+      </div>
 
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-400">
+          {error}
+        </div>
+      ) : null}
+
+      {/* Kanban Board Container */}
+      {selectedPipeline ? (
+        <div className="relative bg-[#f8f9fa] dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 min-h-[450px] shadow-xs">
+          <LoadingOverlay visible={dataLoading} overlayProps={{ blur: 1 }} />
           <KanbanBoard
             pipeline={selectedPipeline}
             stages={visibleStages}
@@ -507,8 +567,8 @@ export default function Pipelines() {
         </div>
       ) : (
         !loading && (
-          <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 dark:border-slate-800 p-8 text-center bg-white dark:bg-slate-900">
-            <Text className="text-gray-500 dark:text-slate-400 text-sm">
+          <div className="flex h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-8 text-center bg-white dark:bg-slate-900 shadow-xs">
+            <Text className="text-slate-500 dark:text-slate-400 text-sm">
               {canManage
                 ? 'No pipelines available. Create one to get started!'
                 : 'No assigned pipelines found.'}
@@ -517,7 +577,7 @@ export default function Pipelines() {
               <Button
                 onClick={openCreatePipeline}
                 size="sm"
-                className="mt-4 bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-xs gap-1.5 hover:cursor-pointer"
+                className={`${primaryBtnClass} mt-4 text-xs gap-1.5`}
               >
                 <IconPlus size={15} />
                 Create Pipeline
@@ -549,16 +609,16 @@ export default function Pipelines() {
         editStage={editingStageFromKanban}
       />
 
-      {/* Redesigned Add/Edit Pipeline Dialog Box */}
+      {/* Add/Edit Pipeline Dialog */}
       <Modal
         opened={pipelineModalOpen}
         onClose={() => setPipelineModalOpen(false)}
         title={
           <div className="flex flex-col gap-0.5">
-            <span className="font-bold text-base text-gray-900 dark:text-gray-100">
+            <span className="font-bold text-base text-slate-900 dark:text-slate-100">
               {editingPipeline ? 'Edit Pipeline' : 'Add Pipeline'}
             </span>
-            <span className="text-xs text-muted-foreground font-normal">
+            <span className="text-xs text-slate-500 font-normal">
               {editingPipeline
                 ? 'Modify the details and workflow setup for this pipeline.'
                 : 'Create a new pipeline to organize leads and stages.'}
@@ -580,7 +640,9 @@ export default function Pipelines() {
                 <Input
                   id="pipeline-name"
                   value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, name: e.target.value }))
+                  }
                   placeholder="e.g. Sales Pipeline"
                   autoComplete="off"
                   disabled={savingPipeline}
@@ -589,12 +651,16 @@ export default function Pipelines() {
 
               {/* Description */}
               <Field>
-                <FieldLabel htmlFor="pipeline-description">Description</FieldLabel>
+                <FieldLabel htmlFor="pipeline-description">
+                  Description
+                </FieldLabel>
                 <InputGroup>
                   <InputGroupTextarea
                     id="pipeline-description"
                     value={form.description}
-                    onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, description: e.target.value }))
+                    }
                     placeholder="Briefly describe the purpose of this pipeline..."
                     rows={4}
                     className="min-h-20 resize-none"
@@ -612,6 +678,7 @@ export default function Pipelines() {
               size="sm"
               onClick={() => setPipelineModalOpen(false)}
               disabled={savingPipeline}
+              className="cursor-pointer transition-all duration-200 ease-in-out"
             >
               Cancel
             </Button>
@@ -620,9 +687,13 @@ export default function Pipelines() {
               form="pipeline-form"
               size="sm"
               disabled={savingPipeline}
-              className="bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 hover:cursor-pointer"
+              className={`${primaryBtnClass}`}
             >
-              {savingPipeline ? 'Saving...' : editingPipeline ? 'Update Pipeline' : 'Create Pipeline'}
+              {savingPipeline
+                ? 'Saving...'
+                : editingPipeline
+                  ? 'Update Pipeline'
+                  : 'Create Pipeline'}
             </Button>
           </CardFooter>
         </form>
@@ -644,7 +715,10 @@ export default function Pipelines() {
       ) : null}
 
       {/* Delete Pipeline Alert */}
-      <AlertDialog open={!!deletePipeline} onOpenChange={(open) => !open && setDeletePipeline(null)}>
+      <AlertDialog
+        open={!!deletePipeline}
+        onOpenChange={(open) => !open && setDeletePipeline(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete pipeline</AlertDialogTitle>
@@ -657,14 +731,16 @@ export default function Pipelines() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingPipeline}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeletingPipeline}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 confirmDeletePipeline();
               }}
               disabled={isDeletingPipeline}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer transition-all duration-200 ease-in-out"
             >
               {isDeletingPipeline ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>

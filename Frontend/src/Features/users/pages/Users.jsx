@@ -73,7 +73,7 @@ export default function Users() {
   // Only allow navigation for Admins/SuperAdmins
   const handleNameClick = (userItem) => {
     if (isAdminOrSuperAdmin) {
-      navigate(`/users/${userItem.id}`);
+      navigate(`/admin/users/${userItem.id}`);
     }
   };
 

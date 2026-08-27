@@ -88,7 +88,7 @@ const data = {
       {
         title: "Leads",
         url: "/user/leads",
-        icon: ListTodo,
+        icon: Users,
       },
       {
         title: "Tasks",
