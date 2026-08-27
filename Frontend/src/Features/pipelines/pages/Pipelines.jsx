@@ -481,7 +481,7 @@ export default function Pipelines() {
         {selectedPipeline && (
           <div className="mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-xs">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-purple-950/50 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0">
                 <IconShare size={20} />
               </div>
               <div>
