@@ -21,7 +21,7 @@ class DashboardService {
     const tenantFilter = this.getTenantFilter(currentUser);
     const [totalUsers, totalTenants, totalLeads, totalTasks, activeTenants] = await Promise.all([
       User.count({ where: tenantFilter }),
-      Tenant.count(), // No filter - tenants are global
+      Tenant.count(),
       Lead.count({ where: tenantFilter }),
       Task.count({ where: tenantFilter }),
       Tenant.count({ where: { status: 'active' } }),
@@ -64,18 +64,78 @@ class DashboardService {
     ];
   }
 
-  async getTenantsChart(currentUser) {
+  async getTenantsChart(currentUser, query = {}) {
+    const period = query.period || query.range || query.timeframe || 'Last 1 Week';
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    let startDate = new Date();
+    let daysToFetch = 7;
+    let formatAsDayName = true;
+
+    if (
+      period === 'Last 1 Month' ||
+      period === '1 Month' ||
+      period === '30 Days' ||
+      period === 'Last 30 Days'
+    ) {
+      daysToFetch = 30;
+      startDate.setDate(today.getDate() - 29);
+      formatAsDayName = false;
+    } else if (period === 'Last 14 Days' || period === '14 Days') {
+      daysToFetch = 14;
+      startDate.setDate(today.getDate() - 13);
+      formatAsDayName = false;
+    } else {
+      daysToFetch = 7;
+      startDate.setDate(today.getDate() - 6);
+      formatAsDayName = true;
+    }
+    startDate.setHours(0, 0, 0, 0);
+
     const rows = await Tenant.findAll({
-      limit: 50,
+      where: {
+        createdAt: {
+          [Op.gte]: startDate,
+          [Op.lte]: today,
+        },
+      },
+      attributes: ['createdAt'],
+      raw: true,
       order: [['createdAt', 'ASC']],
     });
+
+    const toDateKey = (dateObj) => {
+      const d = new Date(dateObj);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     const buckets = {};
+    for (let i = 0; i < daysToFetch; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      const key = toDateKey(d);
+      const label = formatAsDayName
+        ? d.toLocaleDateString('en-US', { weekday: 'short' })
+        : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      buckets[key] = {
+        day: label,
+        tenants: 0,
+      };
+    }
+
     rows.forEach((row) => {
-      const date = new Date(row.createdAt);
-      const day = date.toLocaleDateString('en-US', { weekday: 'short' });
-      if (!buckets[day]) buckets[day] = { day, tenants: 0 };
-      buckets[day].tenants += 1;
+      if (row.createdAt) {
+        const key = toDateKey(row.createdAt);
+        if (buckets[key]) {
+          buckets[key].tenants += 1;
+        }
+      }
     });
+
     return Object.values(buckets);
   }
 
@@ -120,7 +180,12 @@ class DashboardService {
     let daysToFetch = 7;
     let formatAsDayName = true;
 
-    if (period === 'Last 1 Month' || period === '1 Month' || period === '30 Days') {
+    if (
+      period === 'Last 1 Month' ||
+      period === '1 Month' ||
+      period === '30 Days' ||
+      period === 'Last 30 Days'
+    ) {
       daysToFetch = 30;
       startDate.setDate(today.getDate() - 29);
       formatAsDayName = false;
@@ -129,7 +194,6 @@ class DashboardService {
       startDate.setDate(today.getDate() - 13);
       formatAsDayName = false;
     } else {
-      // Default: "Last 1 Week" / "Last 7 Days"
       daysToFetch = 7;
       startDate.setDate(today.getDate() - 6);
       formatAsDayName = true;
@@ -250,19 +314,20 @@ class DashboardService {
     let daysToFetch = 7;
     let formatAsDayName = true;
 
-    // Timeline condition mapping:
-    if (period === 'Last 1 Month' || period === '1 Month' || period === '30 Days') {
-      // Last 1 Month: 30 rolling days (formatted as "MMM DD")
+    if (
+      period === 'Last 1 Month' ||
+      period === '1 Month' ||
+      period === '30 Days' ||
+      period === 'Last 30 Days'
+    ) {
       daysToFetch = 30;
       startDate.setDate(today.getDate() - 29);
       formatAsDayName = false;
     } else if (period === 'Last 14 Days' || period === '14 Days') {
-      // Last 14 Days: 14 rolling days (formatted as "MMM DD")
       daysToFetch = 14;
       startDate.setDate(today.getDate() - 13);
       formatAsDayName = false;
     } else {
-      // Default / "Last 1 Week" / "Last 7 Days" / "This Week": 7 rolling days (formatted as day name e.g. "Mon")
       daysToFetch = 7;
       startDate.setDate(today.getDate() - 6);
       formatAsDayName = true;
