@@ -60,16 +60,19 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
       try {
         const response = await profileApi.getProfile();
-        const fetchedUser = response.data || response;
+        
+        // Unwrap httpResponse helper payload safely
+        const fetchedUser = response?.data?.data || response?.data || response;
         const profile = fetchedUser.profile || {};
 
         const nameParts = (fetchedUser.name || "").trim().split(" ");
         const fallbackFirstName = nameParts[0] || "";
         const fallbackLastName = nameParts.slice(1).join(" ") || "";
 
+        // Strictly isolate profile object attributes to avoid property collision
         setFormData({
-          firstName: profile.firstName || fallbackFirstName,
-          lastName: profile.lastName || fallbackLastName,
+          firstName: profile.firstName ?? fallbackFirstName,
+          lastName: profile.lastName ?? fallbackLastName,
           email: fetchedUser.email || "",
           phone: profile.phone || "",
           designation: profile.designation || "",
@@ -181,7 +184,11 @@ export default function ProfilePage() {
           : "Profile updated successfully!",
       });
 
-      const updatedUser = updatedProfileResponse.data || updatedProfileResponse;
+      const updatedUser =
+        updatedProfileResponse?.data?.data ||
+        updatedProfileResponse?.data ||
+        updatedProfileResponse;
+
       if (typeof setUser === "function") {
         setUser(updatedUser);
       }
@@ -241,10 +248,9 @@ export default function ProfilePage() {
                     const result = await profileApi.uploadAvatar(file);
 
                     const newAvatar =
-                      result?.avatar ||
                       result?.data?.avatar ||
-                      result?.user?.avatar ||
-                      result?.data?.profile?.avatar ||
+                      result?.avatar ||
+                      result?.data?.data?.avatar ||
                       "";
 
                     if (!newAvatar) {
