@@ -1,11 +1,28 @@
 import { Profile, User } from "../models/index.js";
 import { uploadToCloudinary, deleteFromCloudinary } from "../utils/fileStorage.js";
 import bcrypt from "bcryptjs";
+
 export const fetchUserProfile = async (userId) => {
+  // Explicitly specify attributes to eliminate key collisions and hide sensitive data
   const user = await User.findByPk(userId, {
-    attributes: { exclude: ["password"] },
-    include: [{ model: Profile, as: "profile" }],
+    attributes: ["id", "name", "email", "role"],
+    include: [
+      {
+        model: Profile,
+        as: "profile",
+        attributes: [
+          "id",
+          "firstName",
+          "lastName",
+          "phone",
+          "designation",
+          "department",
+          "avatar",
+        ],
+      },
+    ],
   });
+
   return user;
 };
 
@@ -15,7 +32,7 @@ export const updateUserProfile = async (userId, updateData) => {
   let profile = await Profile.findOne({ where: { userId } });
 
   if (!profile) {
-    profile = await Profile.create({
+    await Profile.create({
       userId,
       firstName,
       lastName,
@@ -33,6 +50,7 @@ export const updateUserProfile = async (userId, updateData) => {
     });
   }
 
+  // Refetch clean, mapped structure
   return await fetchUserProfile(userId);
 };
 
