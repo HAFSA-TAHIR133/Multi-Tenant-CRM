@@ -1,105 +1,45 @@
 "use client";
 
 import * as React from "react";
-import { ChevronsUpDown } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { GalleryVerticalEnd } from "lucide-react";
+import { TeamSwitcher } from "@/components/layout/team-switcher";
+import { useAuth } from "@/Features/auth/context/AuthContext";
+import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 
-export function TeamSwitcher({ teams = [] }) {
-  const { isMobile } = useSidebar();
-  const [activeTeam, setActiveTeam] = React.useState(teams[0]);
+export function AppSidebar({ ...props }) {
+  const { user } = useAuth();
 
-  // Keep internal state updated whenever teams prop updates (e.g. on profile page open)
-  React.useEffect(() => {
-    if (teams && teams.length > 0) {
-      setActiveTeam(teams[0]);
-    }
-  }, [teams]);
+  // 1. Resolve dynamic tenant name from user auth context
+  const tenantName =
+    user?.tenantName ||
+    user?.tenant?.name ||
+    (user?.role === "SUPERADMIN" || user?.role === 3
+      ? "System Portal"
+      : "Loading...");
 
-  if (!activeTeam) return null;
-
-  const ActiveLogo = activeTeam.logo;
-
-  // Single tenant / portal view (Static rendering to avoid unnecessary state shifts)
-  if (teams.length <= 1) {
-    return (
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="lg">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              {ActiveLogo && <ActiveLogo className="size-4" />}
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">{activeTeam.name}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {activeTeam.plan}
-              </span>
-            </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    );
-  }
+  // 2. Build the teams array dynamically (NO "Acme Inc" fallback)
+  const teams = React.useMemo(() => {
+    return [
+      {
+        name: tenantName,
+        logo: GalleryVerticalEnd,
+        plan:
+          user?.role === "SUPERADMIN" || user?.role === 3
+            ? "Super Admin Portal"
+            : "CRM Solution",
+      },
+    ];
+  }, [tenantName, user?.role]);
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                {ActiveLogo && <ActiveLogo className="size-4" />}
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{activeTeam.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {activeTeam.plan}
-                </span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-            align="start"
-            side={isMobile ? "bottom" : "right"}
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Tenants
-            </DropdownMenuLabel>
-            {teams.map((team, index) => {
-              const TeamIcon = team.logo;
-              return (
-                <DropdownMenuItem
-                  key={team.name || index}
-                  onClick={() => setActiveTeam(team)}
-                  className="gap-2 p-2"
-                >
-                  <div className="flex size-6 items-center justify-center rounded-sm border">
-                    {TeamIcon && <TeamIcon className="size-4 shrink-0" />}
-                  </div>
-                  {team.name}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
+        {/* Pass dynamically derived teams */}
+        <TeamSwitcher teams={teams} />
+      </SidebarHeader>
+      <SidebarContent>
+        {/* Rest of your sidebar navigation */}
+      </SidebarContent>
+    </Sidebar>
   );
 }
