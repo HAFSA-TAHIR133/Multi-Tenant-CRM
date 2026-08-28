@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { GalleryVerticalEnd } from "lucide-react";
-import { TeamSwitcher } from "@/components/layout/team-switcher";
 import { useAuth } from "@/Features/auth/context/AuthContext";
 import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 
