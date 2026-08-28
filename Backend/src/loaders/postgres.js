@@ -28,33 +28,45 @@
 
 
 import { Sequelize } from "sequelize";
-
+import pg from "pg";
 import { env } from "../config/env.js";
 
-export const sequelize = new Sequelize(
-  env.dbName,
-  env.dbUser,
-  env.dbPassword,
-  {
-    host: env.dbHost || "localhost",
-    port: env.dbPort || 5432,
-    dialect: "postgres",
+const isProduction = env.nodeEnv === "production" || process.env.VERCEL;
 
-    // No SSL for local PostgreSQL
-    dialectOptions: {},
-
-    logging: env.nodeEnv === "development" ? console.log : false,
-  }
-);
+// Resolve connection strategy: DATABASE_URL takes priority over individual parameters
+export const sequelize = env.databaseUrl
+  ? new Sequelize(env.databaseUrl, {
+      dialect: "postgres",
+      dialectModule: pg, // Ensures compatibility with Vercel serverless bundle
+      logging: env.nodeEnv === "development" ? console.log : false,
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false, // Required for Neon / Cloud Postgres
+        },
+      },
+    })
+  : new Sequelize(env.dbName, env.dbUser, env.dbPassword, {
+      host: env.dbHost,
+      port: env.dbPort,
+      dialect: "postgres",
+      dialectModule: pg,
+      logging: env.nodeEnv === "development" ? console.log : false,
+      dialectOptions: {},
+    });
 
 const postgresLoader = async () => {
   try {
     await sequelize.authenticate();
-
-    console.log("✅ Database connected successfully to local PostgreSQL!");
+    console.log("✅ Database connected successfully!");
   } catch (error) {
-    console.error("❌ Unable to connect to database:", error);
-    process.exit(1);
+    console.error("❌ Unable to connect to database:", error.message);
+    
+    // Do NOT run process.exit(1) on Vercel/serverless environments
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
+    throw error;
   }
 };
 

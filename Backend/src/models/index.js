@@ -2,6 +2,8 @@ import { Sequelize } from 'sequelize';
 import pg from 'pg';
 import config from '../config/index.js';
 
+import { sequelize } from '../loaders/postgres.js';
+
 import Tenant from './tenant.modal.js';
 import User from './user.model.js';
 import Profile from './profile.modal.js';
@@ -17,32 +19,32 @@ import taskCommentModel from './taskComment.model.js';
 import LeadDocumentModel from './leadDocument.model.js';
 
 // Resolve database URL or explicit options
-const dbUrl = config?.databaseUrl || process.env.DATABASE_URL;
+// const dbUrl = config?.databaseUrl || process.env.DATABASE_URL;
 
-const sequelize = dbUrl
-  ? new Sequelize(dbUrl, {
-      dialect: "postgres",
-      dialectModule: pg,
-      logging: false,
-      dialectOptions: {
-        ssl: {
-          require: true,
-          rejectUnauthorized: false,
-        },
-      },
-    })
-  : new Sequelize(
-      process.env.DB_NAME,
-      process.env.DB_USER,
-      process.env.DB_PASSWORD,
-      {
-        host: process.env.DB_HOST || "localhost",
-        port: process.env.DB_PORT || 5432,
-        dialect: "postgres",
-        dialectModule: pg,
-        logging: false,
-      }
-    );
+// const sequelize = dbUrl
+//   ? new Sequelize(dbUrl, {
+//       dialect: "postgres",
+//       dialectModule: pg,
+//       logging: false,
+//       dialectOptions: {
+//         ssl: {
+//           require: true,
+//           rejectUnauthorized: false,
+//         },
+//       },
+//     })
+//   : new Sequelize(
+//       process.env.DB_NAME,
+//       process.env.DB_USER,
+//       process.env.DB_PASSWORD,
+//       {
+//         host: process.env.DB_HOST || "localhost",
+//         port: process.env.DB_PORT || 5432,
+//         dialect: "postgres",
+//         dialectModule: pg,
+//         logging: false,
+//       }
+//     );
 
 // Initialize Models
 const TenantModel = Tenant(sequelize);
