@@ -54,10 +54,12 @@ export default function LoginForm({ className, ...props }) {
   };
 
   const onSubmit = async (data) => {
+    console.log(data);
     setApiError('');
     setGoogleError('');
     try {
       const response = await login(data);
+      
       redirectByRole(response);
     } catch (err) {
       setApiError(err.message || 'Login failed');
