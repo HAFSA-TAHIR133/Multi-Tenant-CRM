@@ -3,8 +3,11 @@ import { authApi } from "../api/authApi";
 import { useTenant } from "@/context/TenantContext.jsx";
 import { AUTH_UPDATED_EVENT } from "@/api/fetchApiHelper.jsx";
 import {
+  deriveTenantFromLoginPayload,
   enrichUserWithTenant,
+  normalizeTenantFromUser,
   readStoredAuth,
+  resolveTenantForSession,
 } from "../utils/tenantDisplay.js";
 
 export const AuthContext = createContext(null);
@@ -22,22 +25,27 @@ function safeParse(value) {
 function persistAuthSession({ user, accessToken, activeTenant }) {
   if (!user || !accessToken) return;
 
-  const currentAuth = readStoredAuth() || {};
+  const resolvedTenant = resolveTenantForSession(user, activeTenant, accessToken);
+
   localStorage.setItem(
     "auth",
     JSON.stringify({
-      ...currentAuth,
       user,
       accessToken,
-      activeTenant: activeTenant || currentAuth.activeTenant || null,
+      activeTenant: resolvedTenant,
     })
   );
 }
 
 export const AuthProvider = ({ children }) => {
   const initialAuth = readStoredAuth();
-  const initialTenant =
-    initialAuth?.activeTenant ?? initialAuth?.tenant ?? initialAuth?.user?.tenant ?? null;
+  const initialTenant = initialAuth
+    ? resolveTenantForSession(
+        initialAuth.user,
+        initialAuth.activeTenant ?? initialAuth.tenant,
+        initialAuth.accessToken
+      )
+    : null;
 
   const [user, setUser] = useState(() =>
     enrichUserWithTenant(initialAuth?.user, initialTenant, initialAuth?.accessToken)
@@ -47,41 +55,31 @@ export const AuthProvider = ({ children }) => {
 
   const { activeTenant, setActiveTenant, clearTenant } = useTenant();
 
-  // Ref to hold the idle timeout ID across renders
   const inactivityTimerRef = useRef(null);
 
-  // Centralized logout function (clears backend session + frontend state)
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
     } catch (err) {
       console.error("Logout request failed (session may already be expired):", err);
     } finally {
-      // Clear React Context state
       setUser(null);
       setAccessToken(null);
-      
-      // Clear Tenant Context state
       clearTenant();
-      
-      // Clear local storage
       localStorage.removeItem("auth");
 
-      // Clear any pending inactivity timers
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
       }
     }
   }, [clearTenant]);
 
-  // Keep localStorage sync centralized
   useEffect(() => {
     if (user && accessToken) {
       persistAuthSession({ user, accessToken, activeTenant });
     }
   }, [user, accessToken, activeTenant]);
 
-  // Sync state with global auth update events
   useEffect(() => {
     const handleAuthUpdated = () => {
       const current = safeParse(localStorage.getItem("auth"));
@@ -93,10 +91,13 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      setAccessToken(current.accessToken);
+      const storedTenant = resolveTenantForSession(
+        current.user,
+        current.activeTenant ?? current.tenant,
+        current.accessToken
+      );
 
-      const storedTenant =
-        current.activeTenant ?? current.tenant ?? current.user?.tenant ?? null;
+      setAccessToken(current.accessToken);
 
       if (current.user) {
         setUser(
@@ -106,6 +107,8 @@ export const AuthProvider = ({ children }) => {
 
       if (storedTenant) {
         setActiveTenant(storedTenant);
+      } else {
+        clearTenant();
       }
     };
 
@@ -113,9 +116,7 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener(AUTH_UPDATED_EVENT, handleAuthUpdated);
   }, [clearTenant, setActiveTenant]);
 
-  // Handle 15-minute Inactivity Timeout
   useEffect(() => {
-    // Only set up activity tracking if user is logged in
     if (!user || !accessToken) return;
 
     const resetInactivityTimer = () => {
@@ -124,22 +125,18 @@ export const AuthProvider = ({ children }) => {
       }
 
       inactivityTimerRef.current = setTimeout(() => {
-        logout(); // FIXED: Triggers full context & local storage cleanup
+        logout();
       }, INACTIVITY_TIMEOUT);
     };
 
-    // User interaction events to track activity
     const activityEvents = ["mousemove", "keydown", "click", "scroll", "touchstart"];
 
-    // Initialize timer immediately on mount/login
     resetInactivityTimer();
 
-    // Attach listeners
     activityEvents.forEach((event) => {
       window.addEventListener(event, resetInactivityTimer);
     });
 
-    // Cleanup listeners and timer on unmount or logout
     return () => {
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
@@ -153,12 +150,9 @@ export const AuthProvider = ({ children }) => {
   const establishSession = (data) => {
     const nextUser = data.user || null;
     const nextAccessToken = data.accessToken || data.token || null;
+    const nextTenant = deriveTenantFromLoginPayload(data);
 
-    const nextTenant =
-      data.activeTenant ||
-      data.tenant ||
-      nextUser?.tenant ||
-      null;
+    clearTenant();
 
     const enrichedUser = enrichUserWithTenant(
       nextUser,
@@ -182,7 +176,7 @@ export const AuthProvider = ({ children }) => {
     return {
       ...data,
       user: enrichedUser,
-      activeTenant: nextTenant,
+      activeTenant: nextTenant ?? normalizeTenantFromUser(enrichedUser),
     };
   };
 
@@ -206,15 +200,39 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = useCallback(
+    (nextUserOrUpdater) => {
+      setUser((prev) => {
+        const nextUser =
+          typeof nextUserOrUpdater === "function"
+            ? nextUserOrUpdater(prev)
+            : nextUserOrUpdater;
+
+        return enrichUserWithTenant(nextUser, activeTenant, accessToken);
+      });
+    },
+    [activeTenant, accessToken]
+  );
+
   const refreshSession = useCallback(async () => {
     const data = await authApi.refresh();
     const nextAccessToken = data.accessToken || data.token;
     setAccessToken(nextAccessToken);
 
     const stored = safeParse(localStorage.getItem("auth")) || {};
+    const resolvedTenant = resolveTenantForSession(
+      stored.user,
+      stored.activeTenant,
+      nextAccessToken
+    );
+
     localStorage.setItem(
       "auth",
-      JSON.stringify({ ...stored, accessToken: nextAccessToken })
+      JSON.stringify({
+        ...stored,
+        accessToken: nextAccessToken,
+        activeTenant: resolvedTenant,
+      })
     );
 
     return data;
@@ -223,7 +241,7 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(
     () => ({
       user,
-      setUser, // FIXED: Now exposed for Profile and Avatar state updates
+      setUser: updateUser,
       accessToken,
       activeTenant,
       isAuthenticated: Boolean(user && accessToken),
@@ -233,7 +251,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       refreshSession,
     }),
-    [user, accessToken, activeTenant, isLoading, login, googleLogin, logout, refreshSession]
+    [user, accessToken, activeTenant, isLoading, login, googleLogin, logout, refreshSession, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

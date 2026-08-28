@@ -48,11 +48,14 @@ export function TeamSwitcher({ teams = [] }) {
   if (!activeTeam) return null;
 
   if (teams.length <= 1) {
+    const team = teams[0];
+    if (!team) return null;
+
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg">
-            <TeamDisplay team={activeTeam} />
+          <SidebarMenuButton size="lg" key={team.id ?? team.name}>
+            <TeamDisplay team={team} />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

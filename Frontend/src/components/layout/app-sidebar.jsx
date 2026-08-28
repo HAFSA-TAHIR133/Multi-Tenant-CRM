@@ -4,10 +4,7 @@ import { useMemo } from "react";
 import { NavMain } from "@/components/layout/nav-main";
 import { TeamSwitcher } from "@/components/layout/team-switcher";
 import { useAuth } from "@/Features/auth/context/AuthContext";
-import {
-  getAuthSession,
-  resolveTenantDisplayName,
-} from "@/Features/auth/utils/tenantDisplay";
+import { resolveTenantDisplayName } from "@/Features/auth/utils/tenantDisplay";
 import { ROLES } from "@/constants/roles";
 
 import {
@@ -91,35 +88,31 @@ export default function AppSidebar(props) {
   const { user, activeTenant, accessToken } = useAuth();
 
   const role = user?.role;
-
   const navMain = navMainConfig[role] || [];
 
   const isSuperAdmin =
     role === ROLES.SUPER_ADMIN || role === 3 || role === "SUPERADMIN";
 
-  const tenantName = useMemo(() => {
-    const fromContext = resolveTenantDisplayName({
-      user,
-      activeTenant,
-      accessToken,
-    });
-    if (fromContext) return fromContext;
-
-    const fromStorage = getAuthSession()?.tenantDisplayName;
-    if (fromStorage) return fromStorage;
-
-    return user ? "Loading..." : "Loading...";
-  }, [user, activeTenant, accessToken]);
+  const tenantName = useMemo(
+    () =>
+      resolveTenantDisplayName({
+        user,
+        activeTenant,
+        accessToken,
+      }) ?? (user ? "Loading..." : "Loading..."),
+    [user, activeTenant, accessToken]
+  );
 
   const dynamicTeams = useMemo(
     () => [
       {
+        id: user?.tenantId ?? activeTenant?.id ?? "tenant",
         name: tenantName,
         logo: GalleryVerticalEnd,
         plan: isSuperAdmin ? "Super Admin Portal" : "CRM Solution",
       },
     ],
-    [tenantName, isSuperAdmin]
+    [tenantName, isSuperAdmin, user?.tenantId, activeTenant?.id]
   );
 
   return (

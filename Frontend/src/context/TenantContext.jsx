@@ -1,31 +1,38 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  normalizeTenantFromUser,
+  readStoredAuth,
+  resolveTenantForSession,
+} from '@/Features/auth/utils/tenantDisplay';
 
 export const TenantContext = createContext(null);
 
-function safeParse(value) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
 export const TenantProvider = ({ children }) => {
-  const [activeTenant, setActiveTenant] = useState(() => {
-    const stored = safeParse(localStorage.getItem('auth'));
-    return (
-      stored?.activeTenant ??
-      stored?.tenant ??
-      stored?.user?.tenant ??
-      null
+  const [activeTenant, setActiveTenantState] = useState(() => {
+    const stored = readStoredAuth();
+    if (!stored) return null;
+
+    return resolveTenantForSession(
+      stored.user,
+      stored.activeTenant ?? stored.tenant,
+      stored.accessToken
     );
   });
 
   useEffect(() => {
     const onStorage = () => {
-      const stored = safeParse(localStorage.getItem('auth'));
-      setActiveTenant(
-        stored?.activeTenant ?? stored?.tenant ?? stored?.user?.tenant ?? null
+      const stored = readStoredAuth();
+      if (!stored) {
+        setActiveTenantState(null);
+        return;
+      }
+
+      setActiveTenantState(
+        resolveTenantForSession(
+          stored.user,
+          stored.activeTenant ?? stored.tenant,
+          stored.accessToken
+        )
       );
     };
 
@@ -37,16 +44,26 @@ export const TenantProvider = ({ children }) => {
     () => ({
       activeTenant,
       setActiveTenant: (tenant) => {
-        setActiveTenant(tenant);
-        const stored = safeParse(localStorage.getItem('auth')) || {};
+        setActiveTenantState(tenant);
+
+        const stored = readStoredAuth() || {};
+        const resolvedTenant =
+          tenant ??
+          normalizeTenantFromUser(stored.user) ??
+          resolveTenantForSession(
+            stored.user,
+            stored.activeTenant,
+            stored.accessToken
+          );
+
         localStorage.setItem(
           'auth',
-          JSON.stringify({ ...stored, activeTenant: tenant })
+          JSON.stringify({ ...stored, activeTenant: resolvedTenant })
         );
       },
       clearTenant: () => {
-        setActiveTenant(null);
-        const stored = safeParse(localStorage.getItem('auth')) || {};
+        setActiveTenantState(null);
+        const stored = readStoredAuth() || {};
         delete stored.activeTenant;
         localStorage.setItem('auth', JSON.stringify(stored));
       },
