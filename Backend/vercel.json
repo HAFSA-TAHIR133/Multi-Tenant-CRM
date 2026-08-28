@@ -16,6 +16,8 @@
     {
       "path": "/api/v1/cron/tasks",
       "schedule": "10 11 * * *"
+
+      
     }
   ]
 }
