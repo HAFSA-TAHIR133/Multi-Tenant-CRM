@@ -67,7 +67,20 @@ export default (sequelize) => {
         allowNull: false,
         field: 'updatedAt',
       },
+
+      resetOtp: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null,
     },
+    resetOtpExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
+    },
+
+    
     {
       sequelize,
       modelName: 'User',

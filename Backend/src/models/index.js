@@ -21,7 +21,7 @@ const dbUrl = config?.databaseUrl || process.env.DATABASE_URL;
 
 const sequelize = dbUrl
   ? new Sequelize(dbUrl, {
-      dialect: 'postgres',
+      dialect: "postgres",
       dialectModule: pg,
       logging: false,
       dialectOptions: {
@@ -36,9 +36,9 @@ const sequelize = dbUrl
       process.env.DB_USER,
       process.env.DB_PASSWORD,
       {
-        host: process.env.DB_HOST || 'localhost',
+        host: process.env.DB_HOST || "localhost",
         port: process.env.DB_PORT || 5432,
-        dialect: 'postgres',
+        dialect: "postgres",
         dialectModule: pg,
         logging: false,
       }

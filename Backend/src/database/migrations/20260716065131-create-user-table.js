@@ -55,6 +55,16 @@ export async function up(queryInterface) {
       type: DataTypes.DATE,
       allowNull: false,
     },
+    resetOtp: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null,
+    },
+    resetOtpExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
   });
 
 }
