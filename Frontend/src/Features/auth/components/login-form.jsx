@@ -106,7 +106,7 @@ export default function LoginForm({ className, ...props }) {
                 <div className="flex size-10 items-center justify-center rounded-xl border border-slate-700 bg-gradient-to-tr from-slate-900 to-slate-800 text-white shadow-md shadow-black/40">
                   <GalleryVerticalEnd className="size-5 text-slate-200" />
                 </div>
-                <span className="sr-only">Hello world</span>
+                <span className="sr-only">CRM Portal</span>
               </a>
               <h1 className="text-2xl font-bold tracking-tight text-white">Welcome back</h1>
               <p className="text-sm text-slate-400">Access your tenant workspace</p>

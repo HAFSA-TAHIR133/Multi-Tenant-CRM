@@ -2,6 +2,10 @@ import { createContext, useContext, useEffect, useMemo, useState, useCallback, u
 import { authApi } from "../api/authApi";
 import { useTenant } from "@/context/TenantContext.jsx";
 import { AUTH_UPDATED_EVENT } from "@/api/fetchApiHelper.jsx";
+import {
+  enrichUserWithTenant,
+  readStoredAuth,
+} from "../utils/tenantDisplay.js";
 
 export const AuthContext = createContext(null);
 
@@ -15,17 +19,59 @@ function safeParse(value) {
   }
 }
 
-export const AuthProvider = ({ children }) => {
-  const storedAuth = safeParse(localStorage.getItem("auth"));
+function persistAuthSession({ user, accessToken, activeTenant }) {
+  if (!user || !accessToken) return;
 
-  const [user, setUser] = useState(storedAuth?.user || null);
-  const [accessToken, setAccessToken] = useState(storedAuth?.accessToken || null);
+  const currentAuth = readStoredAuth() || {};
+  localStorage.setItem(
+    "auth",
+    JSON.stringify({
+      ...currentAuth,
+      user,
+      accessToken,
+      activeTenant: activeTenant || currentAuth.activeTenant || null,
+    })
+  );
+}
+
+export const AuthProvider = ({ children }) => {
+  const initialAuth = readStoredAuth();
+  const initialTenant =
+    initialAuth?.activeTenant ?? initialAuth?.tenant ?? initialAuth?.user?.tenant ?? null;
+
+  const [user, setUser] = useState(() =>
+    enrichUserWithTenant(initialAuth?.user, initialTenant, initialAuth?.accessToken)
+  );
+  const [accessToken, setAccessToken] = useState(initialAuth?.accessToken || null);
   const [isLoading, setIsLoading] = useState(false);
 
   const { activeTenant, setActiveTenant, clearTenant } = useTenant();
-  
+
   // Ref to hold the idle timeout ID across renders
   const inactivityTimerRef = useRef(null);
+
+  // Re-hydrate auth/tenant state after hard reloads (common on Vercel SPA entry).
+  useEffect(() => {
+    const stored = readStoredAuth();
+    if (!stored?.accessToken) return;
+
+    const storedTenant =
+      stored.activeTenant ?? stored.tenant ?? stored.user?.tenant ?? null;
+
+    const hydratedUser = enrichUserWithTenant(
+      stored.user,
+      storedTenant,
+      stored.accessToken
+    );
+
+    setAccessToken(stored.accessToken);
+    if (hydratedUser) {
+      setUser(hydratedUser);
+    }
+    if (storedTenant) {
+      setActiveTenant(storedTenant);
+    }
+  }, [setActiveTenant]);
 
   // Centralized logout function (clears backend session + frontend state)
   const logout = useCallback(async () => {
@@ -54,16 +100,7 @@ export const AuthProvider = ({ children }) => {
   // Keep localStorage sync centralized
   useEffect(() => {
     if (user && accessToken) {
-      const currentAuth = safeParse(localStorage.getItem("auth")) || {};
-      localStorage.setItem(
-        "auth",
-        JSON.stringify({
-          ...currentAuth,
-          user,
-          accessToken,
-          activeTenant: activeTenant || currentAuth.activeTenant || null,
-        })
-      );
+      persistAuthSession({ user, accessToken, activeTenant });
     }
   }, [user, accessToken, activeTenant]);
 
@@ -80,14 +117,24 @@ export const AuthProvider = ({ children }) => {
       }
 
       setAccessToken(current.accessToken);
+
+      const storedTenant =
+        current.activeTenant ?? current.tenant ?? current.user?.tenant ?? null;
+
       if (current.user) {
-        setUser(current.user);
+        setUser(
+          enrichUserWithTenant(current.user, storedTenant, current.accessToken)
+        );
+      }
+
+      if (storedTenant) {
+        setActiveTenant(storedTenant);
       }
     };
 
     window.addEventListener(AUTH_UPDATED_EVENT, handleAuthUpdated);
     return () => window.removeEventListener(AUTH_UPDATED_EVENT, handleAuthUpdated);
-  }, [clearTenant]);
+  }, [clearTenant, setActiveTenant]);
 
   // Handle 15-minute Inactivity Timeout
   useEffect(() => {
@@ -137,12 +184,24 @@ export const AuthProvider = ({ children }) => {
       nextUser?.tenantId ||
       null;
 
-    setUser(nextUser);
+    const enrichedUser = enrichUserWithTenant(
+      nextUser,
+      nextTenant,
+      nextAccessToken
+    );
+
+    setUser(enrichedUser);
     setAccessToken(nextAccessToken);
 
     if (nextTenant) {
       setActiveTenant(nextTenant);
     }
+
+    persistAuthSession({
+      user: enrichedUser,
+      accessToken: nextAccessToken,
+      activeTenant: nextTenant,
+    });
 
     return data;
   };

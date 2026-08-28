@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { NavMain } from "@/components/layout/nav-main";
 import { TeamSwitcher } from "@/components/layout/team-switcher";
 import { useAuth } from "@/Features/auth/context/AuthContext";
+import { resolveTenantDisplayName } from "@/Features/auth/utils/tenantDisplay";
 import { ROLES } from "@/constants/roles";
 
 import {
@@ -83,32 +85,32 @@ const navMainConfig = {
 };
 
 export default function AppSidebar(props) {
-  const { user } = useAuth();
+  const { user, activeTenant, accessToken } = useAuth();
 
   const role = user?.role;
 
-  // Resolve nav items matching numeric or string role formats
   const navMain = navMainConfig[role] || [];
 
-  // Check SuperAdmin status (handles numeric 3/1/2 or string 'SUPERADMIN'/'ADMIN')
   const isSuperAdmin =
     role === ROLES.SUPER_ADMIN || role === 3 || role === "SUPERADMIN";
 
-  // Derive tenant name cleanly without defaulting to "Loading..." when state exists
-  const derivedTenantName =
-    user?.tenantName ||
-    user?.tenant?.name ||
-    (isSuperAdmin ? "System Portal" : null);
+  const tenantName = useMemo(() => {
+    const resolved = resolveTenantDisplayName({ user, activeTenant, accessToken });
+    if (resolved) return resolved;
+    if (!user) return "Loading...";
+    return "CRM Portal";
+  }, [user, activeTenant, accessToken]);
 
-  const tenantName = derivedTenantName || (user ? "CRM Portal" : "Loading...");
-
-  const dynamicTeams = [
-    {
-      name: tenantName,
-      logo: GalleryVerticalEnd,
-      plan: isSuperAdmin ? "Super Admin Portal" : "CRM Solution",
-    },
-  ];
+  const dynamicTeams = useMemo(
+    () => [
+      {
+        name: tenantName,
+        logo: GalleryVerticalEnd,
+        plan: isSuperAdmin ? "Super Admin Portal" : "CRM Solution",
+      },
+    ],
+    [tenantName, isSuperAdmin]
+  );
 
   return (
     <Sidebar collapsible="icon" {...props}>

@@ -13,13 +13,20 @@ function safeParse(value) {
 export const TenantProvider = ({ children }) => {
   const [activeTenant, setActiveTenant] = useState(() => {
     const stored = safeParse(localStorage.getItem('auth'));
-    return stored?.activeTenant ?? stored?.tenant ?? null;
+    return (
+      stored?.activeTenant ??
+      stored?.tenant ??
+      stored?.user?.tenant ??
+      null
+    );
   });
 
   useEffect(() => {
     const onStorage = () => {
       const stored = safeParse(localStorage.getItem('auth'));
-      setActiveTenant(stored?.activeTenant ?? stored?.tenant ?? null);
+      setActiveTenant(
+        stored?.activeTenant ?? stored?.tenant ?? stored?.user?.tenant ?? null
+      );
     };
 
     window.addEventListener('storage', onStorage);

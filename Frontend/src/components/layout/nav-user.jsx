@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/Features/auth/context/AuthContext";
+import { enrichUserWithTenant } from "@/Features/auth/utils/tenantDisplay";
 import { ROLES } from "@/constants/roles";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOutIcon, UserIcon } from "lucide-react";
 import { profileApi } from "../common/pages/profileApi";
 
 export default function NavUser() {
-  const { user, logout, setUser } = useAuth();
+  const { user, logout, setUser, activeTenant, accessToken } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -66,7 +67,9 @@ export default function NavUser() {
           setFetchedAvatar(avatarPath);
           setImgError(false);
           if (typeof setUser === "function") {
-            setUser(profileUser);
+            setUser(
+              enrichUserWithTenant(profileUser, activeTenant, accessToken)
+            );
           }
         }
       } catch (err) {
