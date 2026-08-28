@@ -4,7 +4,10 @@ import { useMemo } from "react";
 import { NavMain } from "@/components/layout/nav-main";
 import { TeamSwitcher } from "@/components/layout/team-switcher";
 import { useAuth } from "@/Features/auth/context/AuthContext";
-import { resolveTenantDisplayName } from "@/Features/auth/utils/tenantDisplay";
+import {
+  getAuthSession,
+  resolveTenantDisplayName,
+} from "@/Features/auth/utils/tenantDisplay";
 import { ROLES } from "@/constants/roles";
 
 import {
@@ -95,10 +98,17 @@ export default function AppSidebar(props) {
     role === ROLES.SUPER_ADMIN || role === 3 || role === "SUPERADMIN";
 
   const tenantName = useMemo(() => {
-    const resolved = resolveTenantDisplayName({ user, activeTenant, accessToken });
-    if (resolved) return resolved;
-    if (!user) return "Loading...";
-    return "CRM Portal";
+    const fromContext = resolveTenantDisplayName({
+      user,
+      activeTenant,
+      accessToken,
+    });
+    if (fromContext) return fromContext;
+
+    const fromStorage = getAuthSession()?.tenantDisplayName;
+    if (fromStorage) return fromStorage;
+
+    return user ? "Loading..." : "Loading...";
   }, [user, activeTenant, accessToken]);
 
   const dynamicTeams = useMemo(

@@ -1,16 +1,23 @@
 
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/Features/auth/context/AuthContext";
+import { getAuthSession } from "@/Features/auth/utils/tenantDisplay";
 import { ROLES } from "../../constants/roles";
 
 export default function RootRedirect() {
   const { isAuthenticated, user } = useAuth();
+  const storedSession = getAuthSession();
 
-  if (!isAuthenticated || !user) {
+  const resolvedUser = user ?? storedSession?.user ?? null;
+  const resolvedAuthenticated = Boolean(
+    (isAuthenticated && user) || storedSession?.isAuthenticated
+  );
+
+  if (!resolvedAuthenticated || !resolvedUser) {
     return <Navigate to="/login" replace />;
   }
 
-  const role = user.role;
+  const role = resolvedUser.role;
 
   if (role === ROLES.SUPER_ADMIN) {
     return <Navigate to="/dashboard" replace />;

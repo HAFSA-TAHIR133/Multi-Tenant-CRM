@@ -50,29 +50,6 @@ export const AuthProvider = ({ children }) => {
   // Ref to hold the idle timeout ID across renders
   const inactivityTimerRef = useRef(null);
 
-  // Re-hydrate auth/tenant state after hard reloads (common on Vercel SPA entry).
-  useEffect(() => {
-    const stored = readStoredAuth();
-    if (!stored?.accessToken) return;
-
-    const storedTenant =
-      stored.activeTenant ?? stored.tenant ?? stored.user?.tenant ?? null;
-
-    const hydratedUser = enrichUserWithTenant(
-      stored.user,
-      storedTenant,
-      stored.accessToken
-    );
-
-    setAccessToken(stored.accessToken);
-    if (hydratedUser) {
-      setUser(hydratedUser);
-    }
-    if (storedTenant) {
-      setActiveTenant(storedTenant);
-    }
-  }, [setActiveTenant]);
-
   // Centralized logout function (clears backend session + frontend state)
   const logout = useCallback(async () => {
     try {
@@ -181,7 +158,6 @@ export const AuthProvider = ({ children }) => {
       data.activeTenant ||
       data.tenant ||
       nextUser?.tenant ||
-      nextUser?.tenantId ||
       null;
 
     const enrichedUser = enrichUserWithTenant(
@@ -203,7 +179,11 @@ export const AuthProvider = ({ children }) => {
       activeTenant: nextTenant,
     });
 
-    return data;
+    return {
+      ...data,
+      user: enrichedUser,
+      activeTenant: nextTenant,
+    };
   };
 
   const login = async (credentials) => {

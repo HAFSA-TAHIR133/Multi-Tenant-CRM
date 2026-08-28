@@ -29,6 +29,11 @@ function normalizeTenantName(value) {
   return trimmed || null;
 }
 
+export function resolveStoredTenant(stored) {
+  if (!stored) return null;
+  return stored.activeTenant ?? stored.tenant ?? stored.user?.tenant ?? null;
+}
+
 export function resolveTenantDisplayName({ user, activeTenant, accessToken } = {}) {
   const role = user?.role;
   const isSuperAdmin =
@@ -50,6 +55,24 @@ export function resolveTenantDisplayName({ user, activeTenant, accessToken } = {
     decodeJwtPayload(accessToken)?.tenantName
   );
   if (jwtTenantName) return jwtTenantName;
+
+  const stored = readStoredAuth();
+  if (stored?.accessToken) {
+    const storedTenant = resolveStoredTenant(stored);
+    const storedUser = stored.user;
+
+    const fromStoredUser =
+      normalizeTenantName(storedUser?.tenantName) ||
+      normalizeTenantName(storedUser?.tenant?.name) ||
+      normalizeTenantName(storedTenant?.name);
+
+    if (fromStoredUser) return fromStoredUser;
+
+    const fromStoredJwt = normalizeTenantName(
+      decodeJwtPayload(stored.accessToken)?.tenantName
+    );
+    if (fromStoredJwt) return fromStoredJwt;
+  }
 
   if (isSuperAdmin) return "System Portal";
 
@@ -77,4 +100,44 @@ export function enrichUserWithTenant(user, activeTenant, accessToken) {
 export function readStoredAuth() {
   if (typeof window === "undefined") return null;
   return safeParse(localStorage.getItem("auth"));
+}
+
+export function getAuthSession() {
+  const stored = readStoredAuth();
+  if (!stored?.accessToken) return null;
+
+  const activeTenant = resolveStoredTenant(stored);
+  const user = enrichUserWithTenant(stored.user, activeTenant, stored.accessToken);
+
+  if (!user) return null;
+
+  return {
+    user,
+    accessToken: stored.accessToken,
+    activeTenant,
+    isAuthenticated: true,
+    tenantDisplayName: resolveTenantDisplayName({
+      user,
+      activeTenant,
+      accessToken: stored.accessToken,
+    }),
+  };
+}
+
+export function hasActiveTenantSession({ user, activeTenant, isSuperAdmin }) {
+  if (isSuperAdmin) return true;
+
+  const tenantRecord =
+    activeTenant && typeof activeTenant === "object" ? activeTenant : null;
+
+  return Boolean(
+    tenantRecord?.id ||
+      tenantRecord?._id ||
+      (typeof activeTenant === "string" || typeof activeTenant === "number"
+        ? activeTenant
+        : null) ||
+      user?.tenantId ||
+      user?.tenant?.id ||
+      user?.tenantName
+  );
 }

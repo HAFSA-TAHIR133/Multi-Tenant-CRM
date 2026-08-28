@@ -6,7 +6,6 @@ import { GalleryVerticalEnd, Eye, EyeOff } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { loginSchema } from '../schemas/authSchema';
 import { useAuth } from '@/Features/auth/context/AuthContext';
-import { useTenant } from '@/context/TenantContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +23,6 @@ export default function LoginForm({ className, ...props }) {
 
   const navigate = useNavigate();
   const { login, googleLogin } = useAuth();
-  const { setActiveTenant } = useTenant();
 
   const {
     register,
@@ -38,11 +36,8 @@ export default function LoginForm({ className, ...props }) {
     },
   });
 
-  const redirectByRole = (response) => {
-    const tenant = response.activeTenant || response.tenant || response.user?.tenant || null;
-    if (tenant) setActiveTenant(tenant);
-
-    const role = response.user?.role || response.role;
+  const redirectByRole = (session) => {
+    const role = session?.user?.role || session?.role;
 
     if (role === ROLES.SUPER_ADMIN) {
       navigate('/dashboard', { replace: true });
@@ -58,9 +53,9 @@ export default function LoginForm({ className, ...props }) {
     setApiError('');
     setGoogleError('');
     try {
-      const response = await login(data);
-      
-      redirectByRole(response);
+      const session = await login(data);
+      // Defer navigation until auth state + localStorage are committed.
+      queueMicrotask(() => redirectByRole(session));
     } catch (err) {
       setApiError(err.message || 'Login failed');
     }
@@ -72,8 +67,8 @@ export default function LoginForm({ className, ...props }) {
       setApiError('');
       setGoogleError('');
       try {
-        const response = await googleLogin(codeResponse.code);
-        redirectByRole(response);
+        const session = await googleLogin(codeResponse.code);
+        queueMicrotask(() => redirectByRole(session));
       } catch (err) {
         setGoogleError(err.message || 'Google login failed');
       }
