@@ -8,6 +8,7 @@ import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar"
 
 export function AppSidebar({ ...props }) {
   const { user } = useAuth();
+  console.log(user);
 
   // 1. Resolve dynamic tenant name from user auth context
   const tenantName =
