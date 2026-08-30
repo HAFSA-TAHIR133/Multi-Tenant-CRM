@@ -14,13 +14,22 @@ registerPlugin(
 );
 
 import { useAuth } from "@/Features/auth/context/AuthContext";
+import { ROLES } from "@/constants/roles";
 import { Button } from "@/components/ui/button";
 import { profileApi } from "./profileApi.jsx";
 import { Eye, EyeOff } from "lucide-react";
 
+function getSuperAdminDesignation(profile, email) {
+  const designation = profile?.designation;
+  if (designation == null || String(designation).trim() === "") return "";
+  if (String(designation).trim() === email) return "";
+  return String(designation).trim();
+}
+
 export default function ProfilePage() {
   const auth = useAuth() || {};
-  const { setUser } = auth;
+  const { user, setUser } = auth;
+  const isSuperAdminProfile = user?.role === ROLES.SUPER_ADMIN;
 
   const [files, setFiles] = useState([]);
   const [fetching, setFetching] = useState(true);
@@ -69,14 +78,23 @@ export default function ProfilePage() {
         const fallbackFirstName = nameParts[0] || "";
         const fallbackLastName = nameParts.slice(1).join(" ") || "";
 
+        const isSuperAdmin = fetchedUser.role === ROLES.SUPER_ADMIN;
+
         // Strictly isolate profile object attributes to avoid property collision
         setFormData({
           firstName: profile.firstName ?? fallbackFirstName,
           lastName: profile.lastName ?? fallbackLastName,
           email: fetchedUser.email || "",
           phone: profile.phone || "",
-          designation: profile.designation || "",
+          designation: isSuperAdmin
+            ? getSuperAdminDesignation(profile, fetchedUser.email || "")
+            : profile.designation || "",
           department: profile.department || "",
+        });
+
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
         });
 
         const initialAvatar = profile.avatar || fetchedUser.avatar;
@@ -168,9 +186,16 @@ export default function ProfilePage() {
     }
 
     try {
+      if (isSuperAdminProfile && hasPasswordChange) {
+        await profileApi.changePassword({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        });
+      }
+
       const updatedProfileResponse = await profileApi.updateProfile(formData);
 
-      if (hasPasswordChange) {
+      if (!isSuperAdminProfile && hasPasswordChange) {
         await profileApi.changePassword({
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword,
@@ -365,6 +390,7 @@ export default function ProfilePage() {
                   name="designation"
                   value={formData.designation}
                   onChange={handleInputChange}
+                  autoComplete={isSuperAdminProfile ? "off" : undefined}
                   className="w-full mt-1 px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -399,7 +425,15 @@ export default function ProfilePage() {
                       onChange={handlePasswordChange}
                       placeholder="Enter current password"
                       className="w-full px-3 py-2 pr-10 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      autoComplete="current-password"
+                      autoComplete={isSuperAdminProfile ? "off" : "current-password"}
+                      readOnly={isSuperAdminProfile}
+                      onFocus={
+                        isSuperAdminProfile
+                          ? (e) => e.target.removeAttribute("readonly")
+                          : undefined
+                      }
+                      data-lpignore={isSuperAdminProfile ? "true" : undefined}
+                      data-1p-ignore={isSuperAdminProfile ? "true" : undefined}
                     />
                     <button
                       type="button"
@@ -429,6 +463,14 @@ export default function ProfilePage() {
                       placeholder="Enter new password"
                       className="w-full px-3 py-2 pr-10 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                       autoComplete="new-password"
+                      readOnly={isSuperAdminProfile}
+                      onFocus={
+                        isSuperAdminProfile
+                          ? (e) => e.target.removeAttribute("readonly")
+                          : undefined
+                      }
+                      data-lpignore={isSuperAdminProfile ? "true" : undefined}
+                      data-1p-ignore={isSuperAdminProfile ? "true" : undefined}
                     />
                     <button
                       type="button"
